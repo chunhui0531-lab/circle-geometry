@@ -1,15 +1,3737 @@
 <!doctype html>
 <html lang="zh-Hant">
+
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Redirecting…</title>
-  <script>
-    // 保留 query string，例如 ?stage=1.5
-    location.replace("./circle_explorer_fixed_v2.html" + location.search + location.hash);
-  </script>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <title>圓心角與弧長探究實驗 - 完整版</title>
+  <style>
+    :root {
+      --bg: #f8fafc;
+      --panel: #ffffff;
+      --text: #1e293b;
+      --muted: #64748b;
+      --line: #e2e8f0;
+
+      /* Shared tokens */
+      --color-angle: #3b82f6;
+      --color-radius: #f97316;
+      --color-arc-new: #10b981;
+      --color-arc-old: #ef4444;
+
+      --accent: #3b82f6;
+      --good: #10b981;
+      --bad: #ef4444;
+      --blue: #3b82f6;
+
+      --btn-bg: #ffffff;
+      --btn-border: #cbd5e1;
+    }
+
+    /* Stage 2 Patch Styles */
+    .ev-stream {
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+    }
+
+    .ev-card {
+      background: #fff;
+      border: 2px solid var(--line);
+      border-radius: 12px;
+      overflow: hidden;
+      transition: all 0.3s;
+      position: relative;
+    }
+
+    .ev-card.focus {
+      border-color: var(--blue);
+      box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.1);
+      transform: scale(1.01);
+      z-index: 10;
+    }
+
+    .ev-card.blink {
+      animation: cardFlash 0.6s ease-in-out;
+    }
+
+    @keyframes cardFlash {
+      0% {
+        box-shadow: 0 0 0 0 var(--accent);
+      }
+
+      50% {
+        box-shadow: 0 0 0 8px rgba(59, 130, 246, 0.3);
+      }
+
+      100% {
+        box-shadow: 0 0 0 0 rgba(59, 130, 246, 0);
+      }
+    }
+
+    .ev-header {
+      background: #f8f9fa;
+      padding: 12px 16px;
+      font-weight: 700;
+      font-size: 20px;
+      border-bottom: 2px solid var(--line);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      color: var(--text);
+    }
+
+    .ev-body {
+      padding: 0;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 220px;
+      background: #fafbfc;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .ev-feedback {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      padding: 10px 16px;
+      font-size: 18px;
+      font-weight: 600;
+      color: #fff;
+      transform: translateY(100%);
+      transition: transform 0.3s;
+      z-index: 5;
+      text-align: center;
+    }
+
+    .ev-feedback.show {
+      transform: translateY(0);
+    }
+
+    .ev-feedback.warn {
+      background: #f59e0b;
+    }
+
+    .ev-feedback.ok {
+      background: #10b981;
+    }
+
+    .q-badge {
+      font-size: 16px;
+      background: #e2e8f0;
+      color: #475569;
+      padding: 4px 10px;
+      border-radius: 6px;
+      margin-left: 10px;
+      vertical-align: middle;
+      font-weight: 600;
+    }
+
+    .quiz-stream .question {
+      border-left: 4px solid transparent;
+      transition: all 0.2s;
+    }
+
+    .quiz-stream .question:hover {
+      border-left-color: var(--blue);
+      background: #f8fbff;
+    }
+
+    .insight-step {
+      opacity: 1;
+      filter: none;
+      transition: all 0.5s;
+      pointer-events: auto;
+      margin-bottom: 24px;
+    }
+
+    .insight-step.active {
+      opacity: 1;
+      filter: none;
+      pointer-events: auto;
+    }
+
+    * {
+      box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent
+    }
+
+    body {
+      margin: 0;
+      background: var(--bg);
+      padding-top: 80px;
+      /* Space for fixed header */
+      color: var(--text);
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans TC", "PingFang TC", "Microsoft JhengHei", sans-serif;
+      line-height: 1.5;
+      font-size: 24px;
+      min-height: 100vh;
+      touch-action: manipulation
+    }
+
+    input[type=range] {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 100%;
+      height: 12px;
+      background: #dee2e6;
+      border-radius: 6px;
+      outline: none;
+      margin: 10px 0;
+      cursor: pointer;
+    }
+
+    input[type=range]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      background: var(--accent);
+      cursor: pointer;
+      border: 4px solid #fff;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+    }
+
+    /* Global Nav Styles */
+    .global-header {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 60px;
+      background: var(--panel);
+      border-bottom: 2px solid var(--line);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 16px;
+      z-index: 9999;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+    }
+
+    .gh-btn {
+      background: var(--btn-bg);
+      border: 1px solid var(--btn-border);
+      border-radius: 8px;
+      padding: 4px 12px;
+      cursor: pointer;
+      text-decoration: none;
+      color: var(--text);
+      font-size: 16px;
+      font-weight: 600;
+      display: inline-flex;
+      align-items: center;
+      height: 36px;
+      transition: all 0.2s;
+      user-select: none;
+      font-family: system-ui;
+    }
+
+    .gh-btn:hover:not(.disabled) {
+      background: #f1f5f9;
+      transform: translateY(-1px);
+    }
+
+    .gh-btn.disabled {
+      opacity: 0.4;
+      pointer-events: none;
+    }
+
+    .gh-center {
+      font-size: 20px;
+      font-weight: 700;
+      color: var(--text);
+    }
+
+    .gh-right {
+      display: flex;
+      gap: 8px;
+    }
+
+    .modal-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.6);
+      z-index: 10000;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      backdrop-filter: blur(2px);
+    }
+
+    .modal-overlay.show {
+      display: flex;
+    }
+
+    .modal-box {
+      background: white;
+      padding: 24px;
+      border-radius: 16px;
+      max-width: 400px;
+      width: 90%;
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+    }
+
+    header h1 {
+      margin: 0;
+      font-size: 40px;
+      font-weight: 800;
+      color: var(--blue);
+      letter-spacing: -0.5px
+    }
+
+    header .sub {
+      margin-top: 4px;
+      font-size: 24px;
+      color: var(--muted)
+    }
+
+    .badge {
+      display: inline-block;
+      padding: 4px 10px;
+      background: var(--accent);
+      color: #fff;
+      border-radius: 12px;
+      font-size: 24px;
+      font-weight: 700;
+      margin-left: 12px
+    }
+
+    .wrap {
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 24px
+    }
+
+    .stage {
+      display: none
+    }
+
+    .stage.active {
+      display: block;
+      animation: fadeIn .4s
+    }
+
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+        transform: translateY(10px)
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0)
+      }
+    }
+
+    .tutorial {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, .85);
+      z-index: 1000;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 24px
+    }
+
+    .tutorial.show {
+      display: flex
+    }
+
+    .tbox {
+      background: #fff;
+      border-radius: 20px;
+      padding: 32px;
+      max-width: 600px;
+      width: 100%;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, .3);
+      animation: slideUp .3s;
+      /* Mobile Fixes */
+      display: flex;
+      flex-direction: column;
+      max-height: 85vh;
+      overflow: hidden;
+    }
+
+    #tut-body {
+      overflow-y: auto;
+      flex: 1;
+      padding-right: 4px;
+      /* Space for scrollbar */
+      -webkit-overflow-scrolling: touch;
+      margin-bottom: 16px;
+    }
+
+    .tact {
+      flex-shrink: 0;
+      padding-top: 16px;
+      margin-top: auto;
+      border-top: 1px solid var(--line);
+    }
+
+    @keyframes slideUp {
+      from {
+        transform: translateY(30px);
+        opacity: 0
+      }
+
+      to {
+        transform: translateY(0);
+        opacity: 1
+      }
+    }
+
+    .tbox h3 {
+      margin: 0 0 20px;
+      font-size: 36px;
+      color: var(--accent);
+      display: flex;
+      align-items: center;
+      gap: 12px
+    }
+
+    .tstep {
+      display: flex;
+      gap: 16px;
+      align-items: start;
+      margin-bottom: 20px;
+      padding: 16px;
+      background: #f8f9fa;
+      border-left: 4px solid var(--accent);
+      border-radius: 12px;
+      font-size: 24px;
+    }
+
+    .tstep .num {
+      background: var(--accent);
+      color: #fff;
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      flex-shrink: 0;
+      font-size: 20px;
+    }
+
+    .tstep .txt {
+      flex: 1;
+      font-size: 24px;
+    }
+
+    .tstep strong {
+      display: block;
+      margin-bottom: 4px;
+      color: var(--accent)
+    }
+
+    .tact {
+      display: flex;
+      gap: 12px;
+      justify-content: flex-end;
+      margin-top: 24px
+    }
+
+    .card {
+      background: var(--panel);
+      border: 2px solid var(--line);
+      border-radius: 16px;
+      padding: 32px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, .1)
+    }
+
+    .card h2 {
+      margin: 0 0 12px;
+      font-size: 36px;
+      display: flex;
+      align-items: center;
+      gap: 12px
+    }
+
+    .card .desc {
+      color: var(--muted);
+      font-size: 24px;
+      margin-bottom: 28px;
+      line-height: 1.7
+    }
+
+    .question {
+      background: #f8f9fa;
+      border: 2px solid var(--line);
+      border-radius: 14px;
+      padding: 24px;
+      margin-bottom: 24px
+    }
+
+    .qNum {
+      font-weight: 800;
+      color: var(--accent);
+      font-size: 24px;
+      margin-bottom: 12px
+    }
+
+    .qText {
+      font-size: 24px;
+      margin-bottom: 16px;
+      line-height: 1.7;
+      font-weight: 500
+    }
+
+    .qDiag {
+      background: #fff;
+      border: 2px solid var(--line);
+      border-radius: 10px;
+      padding: 20px;
+      margin: 16px 0;
+      display: flex;
+      align-items: center;
+      justify-content: center
+    }
+
+    .option {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      padding: 14px 16px;
+      margin: 8px 0;
+      border-radius: 10px;
+      cursor: pointer;
+      transition: all .2s;
+      border: 2px solid var(--line);
+      background: #fff;
+      min-height: 44px
+    }
+
+    .option:hover,
+    .option:active {
+      background: #f8f9fa;
+      border-color: var(--accent);
+      transform: translateX(4px)
+    }
+
+    .option input {
+      margin-top: 4px;
+      cursor: pointer;
+      width: 24px;
+      height: 24px;
+      flex-shrink: 0
+    }
+
+    .option label {
+      cursor: pointer;
+      font-size: 24px;
+      flex: 1;
+      line-height: 1.6
+    }
+
+    button {
+      appearance: none;
+      border: 2px solid var(--line);
+      background: #fff;
+      color: var(--text);
+      border-radius: 8px;
+      padding: 8px 14px;
+      font-size: 24px;
+      cursor: pointer;
+      font-weight: 600;
+      transition: all .2s;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, .08);
+      min-height: 36px;
+      min-width: 36px
+    }
+
+    button:hover,
+    button:active {
+      background: #f8f9fa;
+      border-color: var(--accent);
+      transform: translateY(-2px);
+      box-shadow: 0 4px 8px rgba(0, 0, 0, .12)
+    }
+
+    button:disabled {
+      opacity: .4;
+      cursor: not-allowed;
+      transform: none
+    }
+
+    button.pri {
+      border-color: var(--accent);
+      background: var(--accent);
+      color: #fff;
+      font-size: 24px;
+      padding: 10px 20px
+    }
+
+    button.pri:hover,
+    button.pri:active {
+      background: #e55a25;
+      border-color: #e55a25
+    }
+
+    button.suc {
+      border-color: var(--good);
+      background: var(--good);
+      color: #fff
+    }
+
+    button.suc:hover,
+    button.suc:active {
+      background: #218838;
+      border-color: #218838
+    }
+
+    .result {
+      margin-top: 24px;
+      padding: 20px;
+      border-radius: 14px;
+      border: 2px solid var(--line);
+      background: #fff;
+      font-size: 24px;
+      line-height: 1.8
+    }
+
+    .result.good {
+      border-color: var(--good);
+      background: #d4edda
+    }
+
+    .result.bad {
+      border-color: var(--bad);
+      background: #f8d7da
+    }
+
+    .result .fb {
+      margin-top: 12px;
+      padding: 12px;
+      background: rgba(255, 255, 255, .7);
+      border-radius: 8px;
+      font-size: 24px
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: 1.4fr 1fr;
+      gap: 20px;
+      align-items: start;
+      height: calc(100vh - 120px);
+      max-height: calc(100vh - 120px);
+      overflow: hidden
+    }
+
+    @media(max-width:1200px) {
+      .layout {
+        grid-template-columns: 1fr;
+        height: auto;
+        max-height: none;
+        overflow: visible
+      }
+    }
+
+    @media(min-width:768px) and (max-width:1024px) and (orientation:landscape) {
+      .layout {
+        grid-template-columns: 1.3fr 1fr
+      }
+    }
+
+    .csec {
+      background: #fff;
+      border: 2px solid var(--line);
+      border-radius: 16px;
+      overflow: hidden;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, .1);
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      position: relative
+    }
+
+    .hint-float {
+      position: absolute;
+      top: 80px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(255, 107, 53, .95);
+      color: #fff;
+      padding: 12px 24px;
+      border-radius: 20px;
+      font-size: 24px;
+      font-weight: 600;
+      box-shadow: 0 4px 12px rgba(255, 107, 53, .4);
+      z-index: 10;
+      display: none;
+      pointer-events: none;
+      animation: bounce 2s ease-in-out infinite
+    }
+
+    .hint-float.show {
+      display: block
+    }
+
+    @keyframes bounce {
+
+      0%,
+      100% {
+        transform: translateX(-50%) translateY(0)
+      }
+
+      50% {
+        transform: translateX(-50%) translateY(-8px)
+      }
+    }
+
+    .cbar {
+      padding: 14px 18px;
+      background: #f8f9fa;
+      border-bottom: 2px solid var(--line);
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      align-items: center
+    }
+
+    .cgroup {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center
+    }
+
+    .cgroup label {
+      font-size: 24px;
+      font-weight: 600;
+      color: var(--muted);
+      margin-right: 6px
+    }
+
+    .rbtn,
+    .abtn {
+      padding: 10px 18px;
+      font-size: 24px;
+      border-radius: 8px;
+      border: 2px solid var(--line);
+      background: #fff;
+      font-weight: 600;
+      min-height: 44px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center
+    }
+
+    .rbtn.active,
+    .abtn.active {
+      border-color: var(--accent);
+      background: rgba(255, 107, 53, .12);
+      color: var(--accent);
+      font-weight: 700
+    }
+
+    .tbtn {
+      padding: 10px 16px;
+      font-size: 24px;
+      border-radius: 8px;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      min-height: 44px
+    }
+
+    .chk {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 24px;
+      cursor: pointer;
+      user-select: none;
+      padding: 8px 12px;
+      border-radius: 8px;
+      border: 2px solid var(--line);
+      background: #fff;
+      min-height: 44px
+    }
+
+    .chk input {
+      width: 24px;
+      height: 24px;
+      cursor: pointer
+    }
+
+    .carea {
+      flex: 1;
+      position: relative;
+      overflow: hidden;
+      background: #fafbfc;
+      touch-action: none
+    }
+
+    canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+      touch-action: none
+    }
+
+    .rpanel {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      overflow-y: auto;
+      max-height: 100%;
+      padding-right: 4px
+    }
+
+    .scard {
+      background: var(--panel);
+      border: 2px solid var(--line);
+      border-radius: 14px;
+      padding: 12px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, .08)
+    }
+
+    .scard h3 {
+      margin: 0 0 16px;
+      font-size: 36px;
+      color: var(--accent);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-weight: 700;
+      gap: 8px;
+      cursor: pointer;
+      user-select: none;
+      padding: 4px 8px;
+      margin: -4px -8px 8px -8px;
+      border-radius: 8px;
+      transition: background .2s
+    }
+
+    .scard h3:hover {
+      background: rgba(255, 107, 53, .08)
+    }
+
+    .scard h3 .toggle {
+      margin-left: auto;
+      font-size: 24px;
+      transition: all .2s;
+      display: inline-block
+    }
+
+    .gcard {
+      background: linear-gradient(135deg, #fff5eb 0%, #ffe8d6 100%);
+      border-color: var(--accent)
+    }
+
+    .gcard .steps {
+      display: none;
+      flex-direction: column;
+      gap: 6px;
+      overflow: hidden;
+      transition: all .3s ease;
+      padding: 0
+    }
+
+    .gcard .steps.show {
+      display: flex;
+      animation: slideDown .3s ease
+    }
+
+    @keyframes slideDown {
+      from {
+        opacity: 0;
+        transform: translateY(-10px)
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0)
+      }
+    }
+
+    .gcard .step {
+      display: flex;
+      gap: 8px;
+      align-items: start;
+      padding: 8px;
+      background: rgba(255, 255, 255, .7);
+      border-radius: 6px
+    }
+
+    .gcard .step .num {
+      background: var(--accent);
+      color: #fff;
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 24px;
+      font-weight: 700;
+      flex-shrink: 0
+    }
+
+    .gcard .step .txt {
+      flex: 1;
+      font-size: 24px;
+      line-height: 1.4
+    }
+
+    .pcard .bar {
+      background: #e9ecef;
+      height: 16px;
+      border-radius: 8px;
+      overflow: hidden;
+      position: relative;
+      margin: 6px 0
+    }
+
+    .pcard .fill {
+      background: linear-gradient(90deg, var(--good), #20c997);
+      height: 100%;
+      transition: width .5s;
+      border-radius: 8px
+    }
+
+    .pcard .label {
+      display: flex;
+      justify-content: space-between;
+      font-size: 24px;
+      font-weight: 600;
+      margin-top: 4px
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 6px
+    }
+
+    th {
+      background: #f8f9fa;
+      padding: 6px;
+      font-size: 24px;
+      font-weight: 700;
+      text-align: left;
+      border-bottom: 2px solid var(--line)
+    }
+
+    /* --- New Layout 1.95 --- */
+    .stage-bar {
+      background: #fff;
+      border-bottom: 2px solid var(--line);
+      padding: 12px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      flex-wrap: wrap;
+      min-height: 80px;
+    }
+
+    .sb-info {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      flex-shrink: 0;
+    }
+
+    .sb-title {
+      font-size: 28px;
+      font-weight: 800;
+      color: var(--blue);
+      margin: 0;
+      line-height: 1.2;
+    }
+
+    .sb-goal {
+      font-size: 16px;
+      color: var(--muted);
+      margin: 0;
+      font-weight: 500;
+    }
+
+    .sb-ctrl {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      flex-wrap: wrap;
+      margin-left: auto;
+    }
+
+    .stage-layout {
+      display: grid;
+      grid-template-columns: 1fr 350px;
+      gap: 20px;
+      padding: 20px;
+      height: calc(100vh - 142px);
+      /* 60px header + 82px stagebar */
+      max-width: 1600px;
+      margin: 0 auto;
+    }
+
+    @media (max-width: 1024px) {
+      .stage-layout {
+        grid-template-columns: 1fr;
+        height: auto;
+        padding: 16px;
+      }
+
+      .stage-main {
+        height: 65vh;
+        min-height: 400px;
+      }
+
+      .stage-bar {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 12px;
+      }
+
+      .sb-ctrl {
+        margin-left: 0;
+        width: 100%;
+        justify-content: flex-start;
+      }
+    }
+
+    .stage-main {
+      display: flex;
+      flex-direction: column;
+      background: #fff;
+      border: 2px solid var(--line);
+      border-radius: 16px;
+      overflow: hidden;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+      position: relative;
+    }
+
+    .stage-side {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      overflow-y: auto;
+      padding-right: 4px;
+      /* Scrollbar styling */
+      scrollbar-width: thin;
+      scrollbar-color: var(--muted) transparent;
+    }
+
+    .bottom-bar {
+      padding: 12px 20px;
+      border-top: 2px solid var(--line);
+      background: #f8f9fa;
+      display: flex;
+      justify-content: flex-end;
+      align-items: center;
+      min-height: 60px;
+    }
+
+    /* Panel Details */
+    details.panel {
+      background: #fff;
+      border: 2px solid var(--line);
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.03);
+      flex-shrink: 0;
+      /* Prevent shrinking */
+    }
+
+    details.panel[open] {
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+      /* Highlight open */
+    }
+
+    details.panel summary {
+      padding: 12px 16px;
+      font-weight: 700;
+      font-size: 18px;
+      color: var(--text);
+      cursor: pointer;
+      background: #fff;
+      list-style: none;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      user-select: none;
+      border-bottom: 2px solid transparent;
+      /* Prepare for border */
+      transition: background 0.2s;
+    }
+
+    details.panel summary:hover {
+      background: #f8f9fa;
+    }
+
+    details.panel[open] summary {
+      border-bottom-color: var(--line);
+      background: #f1f5f9;
+      color: var(--blue);
+    }
+
+    details.panel summary::-webkit-details-marker {
+      display: none;
+    }
+
+    details.panel summary::after {
+      content: '►';
+      font-size: 14px;
+      color: var(--muted);
+      transition: transform 0.2s;
+    }
+
+    details.panel[open] summary::after {
+      transform: rotate(90deg);
+    }
+
+    .panel-content {
+      padding: 16px;
+      background: #fff;
+    }
+
+    /* Utility tweaks to fit new structure */
+    .carea {
+      border-radius: 0;
+      background: #fafbfc;
+    }
+
+    /* Reset radius */
+
+    /* Hint float in new layout */
+    .hint-float {
+      top: 20px;
+    }
+
+
+    td {
+      padding: 8px 6px;
+      font-size: 24px;
+      border-bottom: 1px solid var(--line)
+    }
+
+    tr.done {
+      background: #d4edda
+    }
+
+    tr.done td {
+      font-weight: 600
+    }
+
+    .dot {
+      display: inline-block;
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      margin-right: 4px
+    }
+
+    .toast {
+      position: fixed;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%) translateY(100px);
+      background: rgba(33, 37, 41, .95);
+      color: #fff;
+      padding: 14px 24px;
+      border-radius: 12px;
+      font-size: 24px;
+      font-weight: 600;
+      box-shadow: 0 4px 16px rgba(0, 0, 0, .3);
+      z-index: 500;
+      opacity: 0;
+      transition: all .3s;
+      max-width: 90%;
+      text-align: center
+    }
+
+    .toast.show {
+      transform: translateX(-50%) translateY(0);
+      opacity: 1
+    }
+
+    .acard {
+      background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%);
+      border-color: #2196f3
+    }
+
+    .acard h3 {
+      color: #1976d2;
+      font-size: 36px;
+    }
+
+    .obsQ {
+      margin-bottom: 12px
+    }
+
+    .obsQ .qTitle {
+      font-weight: 700;
+      font-size: 24px;
+      margin-bottom: 6px;
+      color: var(--text);
+      line-height: 1.3
+    }
+
+    .obsOpt {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 10px;
+      margin: 3px 0;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: all .2s;
+      border: 2px solid var(--line);
+      background: #fff;
+      min-height: 36px
+    }
+
+    .obsOpt:hover,
+    .obsOpt:active {
+      background: #f0f8ff;
+      border-color: #2196f3
+    }
+
+    .obsOpt input[type="checkbox"] {
+      width: 24px;
+      height: 24px;
+      cursor: pointer;
+      flex-shrink: 0
+    }
+
+    .obsOpt label {
+      cursor: pointer;
+      font-size: 24px;
+      flex: 1;
+      line-height: 1.4
+    }
+
+    .rcard {
+      background: #fff;
+      border: 2px solid var(--line);
+      border-radius: 16px;
+      padding: 28px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, .1)
+    }
+
+    .rcard h3 {
+      margin: 0 0 20px;
+      font-size: 36px;
+      font-weight: 700;
+      color: var(--accent)
+    }
+
+    .refQ {
+      margin-bottom: 28px
+    }
+
+    .refQ .qTitle {
+      font-weight: 700;
+      font-size: 24px;
+      margin-bottom: 12px;
+      color: var(--text)
+    }
+
+    .refOpt {
+      display: flex;
+      align-items: start;
+      gap: 10px;
+      padding: 12px 14px;
+      margin: 6px 0;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all .2s;
+      border: 2px solid var(--line);
+      background: #fff;
+      min-height: 44px
+    }
+
+    .refOpt:hover,
+    .refOpt:active {
+      background: #f0fff0;
+      border-color: var(--good)
+    }
+
+    .refOpt input[type="checkbox"] {
+      width: 24px;
+      height: 24px;
+      cursor: pointer;
+      flex-shrink: 0;
+      margin-top: 2px
+    }
+
+    .refOpt label {
+      cursor: pointer;
+      font-size: 24px;
+      flex: 1;
+      line-height: 1.6
+    }
+
+    .insight {
+      display: none;
+      margin-top: 28px;
+      padding: 24px;
+      background: linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%);
+      border: 2px solid var(--good);
+      border-radius: 14px
+    }
+
+    .insight.show {
+      display: block;
+      animation: fadeIn .5s
+    }
+
+    .insight h4 {
+      margin: 0 0 12px;
+      font-size: 24px;
+      color: var(--good)
+    }
+
+    .insight p {
+      margin: 8px 0;
+      line-height: 1.8;
+      font-size: 24px;
+    }
+
+    .insight ul {
+      font-size: 24px;
+    }
+
+    .formula {
+      background: rgba(255, 255, 255, .7);
+      padding: 12px;
+      border-radius: 8px;
+      font-family: 'Courier New', monospace;
+      font-weight: 700;
+      font-size: 24px;
+      margin: 12px 0;
+      text-align: center;
+      color: var(--accent)
+    }
+
+    @media(max-width:768px) {
+      header {
+        padding: 14px 16px
+      }
+
+      header h1 {
+        font-size: 18px
+      }
+
+      .badge {
+        display: block;
+        margin: 8px 0 0
+      }
+
+      .wrap {
+        padding: 16px
+      }
+
+      .card,
+      .rcard {
+        padding: 20px
+      }
+
+      .tbox {
+        padding: 24px
+      }
+
+      .layout {
+        gap: 16px
+      }
+
+      .cbar {
+        padding: 12px
+      }
+
+      .rpanel {
+        gap: 12px
+      }
+
+      .scard {
+        padding: 16px
+      }
+    }
+
+    @media(min-width:1024px) and (max-width:1366px) {
+      .layout {
+        max-height: calc(100vh - 100px)
+      }
+
+      .csec {
+        min-height: 500px
+      }
+    }
+
+    /* Challenge Hint Styles */
+    .q-hint {
+      display: none;
+      background: #fff3cd;
+      color: #dc3545;
+      padding: 8px 12px;
+      margin-top: 8px;
+      border-radius: 6px;
+      font-weight: 700;
+      font-size: 20px;
+      border: 1px solid #ffeeba;
+    }
+
+    .q-hint.show {
+      display: block;
+      animation: fadeIn 0.3s;
+    }
+  </style>
 </head>
+
 <body>
-  <p>Redirecting…</p>
+  <header class="global-header">
+    <div class="gh-left">
+      <a href="index.html" class="gh-btn">🏠 Home</a>
+    </div>
+    <div class="gh-center" id="gh-title">探究活動</div>
+    <div class="gh-right">
+      <a id="gh-back" class="gh-btn disabled">◀ Back</a>
+      <a id="gh-next" class="gh-btn disabled">Next ▶</a>
+      <button class="gh-btn" onclick="document.getElementById('gh-help-modal').classList.add('show')">?</button>
+    </div>
+  </header>
+
+  <div id="gh-help-modal" class="modal-overlay">
+    <div class="modal-box">
+      <h3>📌 探究小幫手</h3>
+      <p>如果在操作中遇到困難，請嘗試：</p>
+      <ul>
+        <li>確認是否完成了所有測量/觀察步驟</li>
+        <li>拖曳畫布上的控制點</li>
+        <li>點擊「重置」按鈕重新開始</li>
+      </ul>
+      <button class="gh-btn" style="width:100%;justify-content:center;margin-top:10px"
+        onclick="document.getElementById('gh-help-modal').classList.remove('show')">關閉</button>
+    </div>
+  </div>
+
+  <div class="wrap">
+    <!-- Header removed -->
+    <div class="tutorial" id="tut">
+      <div class="tbox">
+        <h3 id="tut-title"></h3>
+        <div id="tut-body"></div>
+        <div class="tact">
+          <button id="skipTutBtn">跳過</button>
+          <button class="pri" id="startTutBtn">開始探究</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Stage 0 -->
+    <div class="stage active" id="s0">
+      <div class="card" style="max-width:900px;margin:0 auto">
+        <h2>📝 前測：你對圓心角和弧長了解多少？</h2>
+        <p class="desc">請先完成以下 3 題，幫助我們了解你的先備知識。不用擔心答錯，這只是為了幫助你學習！</p>
+
+        <div class="question">
+          <div class="qNum">問題 1</div>
+          <div class="qText">同一個圓中，如果圓心角是 60°，那麼這個圓心角所對應的弧 AB 的度數是多少？</div>
+          <div class="qDiag"><canvas id="q1" width="300" height="200"></canvas></div>
+          <div class="option"><input type="radio" name="q1" id="q1a" value="A"><label for="q1a">A) 30°（圓心角的一半）</label>
+          </div>
+          <div class="option"><input type="radio" name="q1" id="q1b" value="B"><label for="q1b">B) 60°（等於圓心角）</label>
+          </div>
+          <div class="option"><input type="radio" name="q1" id="q1c" value="C"><label for="q1c">C)
+              120°（圓心角的兩倍）</label>
+          </div>
+          <div class="option"><input type="radio" name="q1" id="q1d" value="D"><label for="q1d">D) 需要知道半徑才能確定</label>
+          </div>
+        </div>
+
+        <div class="question">
+          <div class="qNum">問題 2</div>
+          <div class="qText">兩個圓的圓心角都是 90°，但半徑不同 (r₁=50, r₂=100)，請問它們所對應弧的度數：</div>
+          <div class="qDiag"><canvas id="q2" width="300" height="200"></canvas></div>
+          <div class="option"><input type="radio" name="q2" id="q2a" value="A"><label for="q2a">A) 都是
+              90°（弧的度數=圓心角）</label></div>
+          <div class="option"><input type="radio" name="q2" id="q2b" value="B"><label for="q2b">B) r₂
+              的弧度數比較大（因為半徑大）</label></div>
+          <div class="option"><input type="radio" name="q2" id="q2c" value="C"><label for="q2c">C) r₁
+              的弧度數比較大（因為半徑小）</label></div>
+          <div class="option"><input type="radio" name="q2" id="q2d" value="D"><label for="q2d">D) 無法比較</label></div>
+        </div>
+
+        <div class="question">
+          <div class="qNum">問題 3</div>
+          <div class="qText">下列哪個公式可以計算弧長？</div>
+          <div class="qDiag"><canvas id="q3" width="300" height="200"></canvas></div>
+          <div class="option"><input type="radio" name="q3" id="q3a" value="A"><label for="q3a">A) L =
+              θ（角度就是長度）</label>
+          </div>
+          <div class="option"><input type="radio" name="q3" id="q3b" value="B"><label for="q3b">B) L = 2πr ×
+              (θ/360°)</label></div>
+          <div class="option"><input type="radio" name="q3" id="q3c" value="C"><label for="q3c">C) L = r × θ</label>
+          </div>
+          <div class="option"><input type="radio" name="q3" id="q3d" value="D"><label for="q3d">D) L = π × θ</label>
+          </div>
+        </div>
+
+        <button class="pri" id="submit0Btn">提交答案</button>
+        <div class="result" id="res0" style="display:none"></div>
+      </div>
+    </div>
+
+    <!-- Stage 1 -->
+    <div class="stage" id="s1">
+      <div class="stage-bar">
+        <div class="sb-info">
+          <h2 class="sb-title">Stage 1: 測量與發現</h2>
+          <p class="sb-goal">目標：測量不同半徑下的弧度數與弧長</p>
+        </div>
+        <div class="sb-ctrl">
+          <button class="tbtn" id="reset1Btn">🔄 重置</button>
+          <button class="tbtn" id="toggleProtBtn">👁️ 隱藏量角器</button>
+          <button class="tbtn" id="help1Btn">📖 教學</button>
+          <button class="tbtn" id="confusedBtn" style="background:#fff3cd;color:#856404;border-color:#ffeeba">🤔
+            還是不太理解？</button>
+          <div class="cgroup" style="border-left:1px solid #dee2e6;padding-left:12px;margin-left:8px">
+            <span style="font-size:20px;color:var(--muted)">小</span>
+            <input type="range" id="targetAngleSlider" min="20" max="160" value="60" style="width:120px">
+            <span style="font-size:20px;color:var(--muted)">大</span>
+            <span id="targetAngleVal" style="display:none"></span>
+          </div>
+        </div>
+      </div>
+
+      <div class="stage-layout">
+        <!-- Main Area -->
+        <div class="stage-main">
+          <div class="carea">
+            <div class="hint-float" id="h1">拖曳中心點=移動 | 拖曳虛線區=旋轉 | 滾輪=縮放</div>
+            <canvas id="c1"></canvas>
+          </div>
+          <div class="bottom-bar">
+            <div class="cgroup">
+              <button class="rbtn active" data-r="60">小圓</button>
+              <button class="rbtn" data-r="90">中圓</button>
+              <button class="rbtn" data-r="120">大圓</button>
+            </div>
+            <label class="chk" style="margin-left:12px"><input type="checkbox" id="showR"
+                checked><span>半徑線</span></label>
+            <button class="suc" id="btn1" style="margin-left:auto" disabled>✓ 進入下一階段</button>
+          </div>
+        </div>
+
+        <!-- Side Panel -->
+        <div class="stage-side">
+          <!-- Progress (Default Open) -->
+          <details class="panel" open>
+            <summary>📊 測量進度</summary>
+            <div class="panel-content">
+              <div class="pcard">
+                <div class="bar">
+                  <div class="fill" id="prog" style="width:0%"></div>
+                </div>
+                <div class="label"><span id="progt">0 / 3 完成</span><span id="progp">0%</span></div>
+              </div>
+            </div>
+          </details>
+
+          <!-- Records (Default Closed) -->
+          <details class="panel">
+            <summary>📏 測量記錄</summary>
+            <div class="panel-content">
+              <table style="font-size:20px">
+                <thead>
+                  <tr>
+                    <th>圓</th>
+                    <th>角度</th>
+                    <th>狀態</th>
+                  </tr>
+                </thead>
+                <tbody id="tb1">
+                  <tr data-r="60">
+                    <td><span class="dot"
+                        style="background:#17a2b8;display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:6px"></span>小
+                    </td>
+                    <td><input type="number" class="manual-input" data-r="60" placeholder="?"
+                        style="width:70px;padding:4px;font-size:20px"></td>
+                    <td class="sc">未測</td>
+                  </tr>
+                  <tr data-r="90">
+                    <td><span class="dot"
+                        style="background:#ffc107;display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:6px"></span>中
+                    </td>
+                    <td><input type="number" class="manual-input" data-r="90" placeholder="?"
+                        style="width:70px;padding:4px;font-size:20px"></td>
+                    <td class="sc">未測</td>
+                  </tr>
+                  <tr data-r="120">
+                    <td><span class="dot"
+                        style="background:#e83e8c;display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:6px"></span>大
+                    </td>
+                    <td><input type="number" class="manual-input" data-r="120" placeholder="?"
+                        style="width:70px;padding:4px;font-size:20px"></td>
+                    <td class="sc">未測</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </details>
+
+          <!-- Hints (Default Closed) -->
+          <details class="panel">
+            <summary id="guideToggle1">💡 快速提示</summary>
+            <div class="panel-content" id="guideSteps1">
+              <ul style="margin:0;padding-left:20px;font-size:18px;line-height:1.6;color:var(--text)">
+                <li><strong>中心點</strong>：拖曳移動</li>
+                <li><strong>虛線區</strong>：拖曳旋轉</li>
+                <li><strong>紅藍點</strong>：調整角度</li>
+                <li><strong>滾輪</strong>：縮放大小</li>
+              </ul>
+            </div>
+          </details>
+        </div>
+      </div>
+    </div>
+
+    <!-- Stage 1.5 -->
+    <div class="stage" id="s15">
+      <div class="stage-bar">
+        <div class="sb-info">
+          <h2 class="sb-title">Stage 1.5: 位置與弧長</h2>
+          <p class="sb-goal">目標：觀察弧的位置是否影響弧長</p>
+        </div>
+        <div class="sb-ctrl">
+          <button class="tbtn" id="randABtn">🎲 隨機</button>
+          <button class="tbtn" id="resetABtn">🔄 重置</button>
+          <div class="cgroup" style="border-left:1px solid #dee2e6;padding-left:12px;margin-left:8px">
+            <label>角度：</label>
+            <input type="range" id="commonAngleSlider" min="20" max="160" value="60"
+              style="width:120px;vertical-align:middle">
+            <span id="commonAngleVal"
+              style="font-weight:700;width:40px;display:inline-block;text-align:center">60°</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="stage-layout">
+        <!-- Main Area -->
+        <div class="stage-main">
+          <div class="carea">
+            <div class="hint-float" id="h15">拖曳彩色弧可移動位置</div>
+            <canvas id="c15"></canvas>
+          </div>
+          <div class="bottom-bar">
+            <div class="cgroup">
+              <label>選擇弧：</label>
+              <button class="abtn active" data-arc="0">弧 1</button>
+              <button class="abtn" data-arc="1">弧 2</button>
+              <button class="abtn" data-arc="2">弧 3</button>
+            </div>
+            <button class="suc" id="btn15" style="margin-left:auto" disabled>✓ 進入下一階段</button>
+          </div>
+        </div>
+
+        <!-- Side Panel -->
+        <div class="stage-side">
+          <!-- Questions (Default Open) -->
+          <details class="panel" open>
+            <summary>🔍 觀察問題</summary>
+            <div class="panel-content">
+              <div class="obsQ">
+                <div class="qTitle">問題 1：移動後，這三個弧所夾出的「開口大小」（圓心角）有變化嗎？</div>
+                <div class="obsOpt"><input type="checkbox" id="obs1a" value="yes"><label for="obs1a">會改變</label></div>
+                <div class="obsOpt"><input type="checkbox" id="obs1b" value="no"><label for="obs1b">不會改變</label></div>
+                <div class="q-hint" id="hint1"></div>
+              </div>
+              <div class="obsQ">
+                <div class="qTitle">問題 2：雖然位置變了，但弧的「長短」看起來有變嗎？（可嘗試將弧重疊比對）</div>
+                <div class="obsOpt"><input type="checkbox" id="obs2a" value="yes"><label for="obs2a">會改變</label></div>
+                <div class="obsOpt"><input type="checkbox" id="obs2b" value="no"><label for="obs2b">不會改變</label></div>
+                <div class="q-hint" id="hint2"></div>
+              </div>
+              <div class="obsQ">
+                <div class="qTitle" style="display:flex;align-items:center;flex-wrap:wrap">
+                  問題 3：
+                  <input type="text" id="obs3Input"
+                    style="width:120px;margin:0 8px;padding:4px;font-size:22px;border:2px solid #cbd5e1;border-radius:6px;text-align:center"
+                    placeholder="?">
+                  相同
+                </div>
+                <div class="q-hint" id="hint3"></div>
+              </div>
+              <div class="obsQ">
+                <div class="qTitle">問題 4：如果你把弧 1 旋轉到弧 3 的位置，它們會完全重疊嗎？</div>
+                <div class="obsOpt"><input type="checkbox" id="obs4a" value="yes"><label for="obs4a">會重疊</label></div>
+                <div class="obsOpt"><input type="checkbox" id="obs4b" value="no"><label for="obs4b">不會重疊</label></div>
+                <div class="q-hint" id="hint4"></div>
+              </div>
+              <button class="pri" style="width:100%;margin-top:12px" id="submit15Btn">提交觀察</button>
+            </div>
+          </details>
+
+          <!-- Hints (Default Closed) -->
+          <details class="panel">
+            <summary id="guideToggle15">💡 快速提示 <span class="toggle" style="display:none">►</span></summary>
+            <div class="panel-content" id="guideSteps15">
+              <ul style="margin:0;padding-left:20px;font-size:18px;line-height:1.6;color:var(--text)">
+                <li><strong>拖曳弧</strong>：改變位置</li>
+                <li><strong>觀察</strong>：圓心角是否變化</li>
+              </ul>
+            </div>
+          </details>
+        </div>
+      </div>
+    </div>
+
+    <style>
+      /* <!-- CHANGED: Stage 2 section separation (A/B/C independent) --> */
+      .ev-section {
+        position: relative;
+        margin-bottom: 40px;
+        padding-top: 20px;
+        padding-bottom: 20px;
+        border-top: 2px dashed var(--line);
+      }
+
+      .ev-section:first-child {
+        border-top: none;
+        padding-top: 0;
+      }
+
+      .ev-row {
+        display: grid;
+        grid-template-columns: 1.6fr 1fr;
+        gap: 32px;
+        align-items: start;
+      }
+
+      @media (max-width: 900px) {
+        .ev-row {
+          grid-template-columns: 1fr;
+          gap: 20px;
+        }
+      }
+
+      .ev-card {
+        background: #fff;
+        border: 1px solid var(--line);
+        border-radius: 16px;
+        overflow: hidden;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+        display: flex;
+        flex-direction: column;
+        height: 100%;
+      }
+
+      .ev-header {
+        background: #f8f9fa;
+        padding: 12px 20px;
+        border-bottom: 1px solid var(--line);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        height: 48px;
+      }
+
+      .ev-header span {
+        font-weight: 700;
+        color: var(--text);
+        font-size: 18px;
+      }
+
+      .ev-body {
+        position: relative;
+        background: #fafbfc;
+        min-height: 320px;
+        /* Force minimum height for canvas */
+        flex: 1;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 10px;
+      }
+
+      .ev-card.focus {
+        border-color: var(--blue);
+        box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.1);
+        z-index: 5;
+      }
+
+      .ev-card.dim {
+        opacity: 0.5;
+        filter: grayscale(0.5);
+      }
+
+      .ev-feedback {
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        padding: 12px 16px;
+        font-weight: 600;
+        color: #fff;
+        text-align: center;
+        transform: translateY(100%);
+        transition: transform 0.3s;
+        z-index: 10;
+      }
+
+      .ev-feedback.show {
+        transform: translateY(0);
+      }
+
+      .ev-feedback.warn {
+        background: var(--color-radius);
+      }
+
+      .ev-feedback.ok {
+        background: var(--good);
+      }
+
+      /* <!-- CHANGED: Stage 2 Section C Re-layout --> */
+      .ev-card-c {
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+        padding: 0;
+        background: #fff;
+      }
+
+      .c-viz-row {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 24px;
+        padding: 16px;
+        border-bottom: 1px solid var(--line);
+      }
+
+      /* Responsive stack for viz row */
+      @media(max-width: 600px) {
+        .c-viz-row {
+          flex-direction: column;
+        }
+      }
+
+      .c-canvas-box {
+        width: 200px;
+        height: 200px;
+        flex-shrink: 0;
+      }
+
+      .c-ruler-box {
+        flex: 1;
+        min-width: 240px;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+      }
+
+      .ruler-group {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+      }
+
+      .ruler-label {
+        display: flex;
+        justify-content: space-between;
+        color: var(--muted);
+        font-size: 14px;
+        font-weight: 600;
+      }
+
+      .ruler-track {
+        height: 20px;
+        background: #e2e8f0;
+        border-radius: 4px;
+        overflow: hidden;
+        position: relative;
+      }
+
+      .ruler-fill {
+        height: 100%;
+        transition: width 0.1s linear;
+      }
+
+      .ruler-fill.angle {
+        background: var(--blue);
+      }
+
+      .ruler-fill.arc {
+        background: var(--good);
+      }
+
+      .c-ctrl-row {
+        padding: 16px;
+        background: #f8f9fa;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+      }
+
+      .ctrl-item {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+
+      .ctrl-label {
+        width: 60px;
+        font-weight: 700;
+        color: var(--text);
+      }
+
+      .ctrl-slider {
+        flex: 1;
+      }
+
+      .c-summary {
+        padding: 16px;
+        background: #f0fdf4;
+        border-top: 1px solid var(--line);
+      }
+
+      .sum-row {
+        display: flex;
+        justify-content: space-between;
+        padding: 6px 0;
+        font-size: 16px;
+        color: var(--text);
+        border-bottom: 1px dashed rgba(0, 0, 0, 0.1);
+      }
+
+      .sum-row:last-child {
+        border-bottom: none;
+        font-weight: 700;
+        color: var(--accent);
+        font-size: 18px;
+        margin-top: 8px;
+        padding-top: 12px;
+        border-top: 2px solid var(--line);
+      }
+
+      /* Stage2-C overlay split layout */
+      .c-split {
+        display: grid;
+        grid-template-columns: 1.2fr 0.8fr;
+        gap: 24px;
+        align-items: start;
+      }
+
+      @media (max-width: 980px) {
+        .c-split {
+          grid-template-columns: 1fr;
+        }
+      }
+
+      .c-left {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        padding: 12px 0;
+      }
+
+      .c-overlay {
+        position: relative;
+        width: 340px;
+        height: 340px;
+      }
+
+      .c-overlay canvas {
+        position: absolute;
+        inset: 0;
+      }
+
+      #evCC_full {
+        z-index: 1;
+      }
+
+      #evCC {
+        z-index: 2;
+        pointer-events: none;
+      }
+
+      .c-right {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        padding: 12px;
+      }
+    </style>
+    <!-- ... -->
+    <!-- Stage 2 Structure Update -->
+    <div class="stage" id="s2">
+      <!-- Header... -->
+      <div class="stage-bar">
+        <div class="sb-info">
+          <h2 class="sb-title">Stage 2: 歸納與結論</h2>
+          <p class="sb-goal">觀察左圖證據，回答右側問題。每區獨立思考。</p>
+        </div>
+        <div class="sb-ctrl">
+          <button class="tbtn" id="restartBtn">🔄 重新思考</button>
+        </div>
+      </div>
+
+      <div class="stage-layout" style="display:block">
+
+        <!-- Section A -->
+        <section class="ev-section" data-sec="A">
+          <div class="ev-row">
+            <!-- Evidence A -->
+            <div class="ev-card" id="cardA" data-id="1">
+              <div class="ev-header">
+                <span>證據 A：同角度，不同半徑</span>
+              </div>
+              <div class="ev-body">
+                <canvas id="evCA" width="400" height="320"></canvas>
+                <div class="ev-feedback" id="fbA"></div>
+              </div>
+            </div>
+
+            <!-- Quiz A -->
+            <div class="question" data-q="1">
+              <div class="qNum">問題 1</div>
+              <div class="qText">當圓心角相同時，以下哪些敘述正確？</div>
+              <div class="option" data-correct="false"><input type="checkbox" id="q1a"><label
+                  for="q1a">弧長都一樣長，不受半徑影響</label></div>
+              <div class="option" data-correct="true"><input type="checkbox" id="q1b"><label
+                  for="q1b">半徑越大，弧長越長（成正比）</label></div>
+              <div class="option" data-correct="false"><input type="checkbox" id="q1c"><label
+                  for="q1c">半徑變大，但弧角度數也會變大</label></div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Section B -->
+        <section class="ev-section" data-sec="B">
+          <div class="ev-row">
+            <!-- Evidence B -->
+            <div class="ev-card" id="cardB" data-id="2">
+              <div class="ev-header">
+                <span>證據 B：同一圓，不同位置</span>
+              </div>
+              <div class="ev-body">
+                <canvas id="evCB" width="400" height="320"></canvas>
+                <div class="ev-feedback" id="fbB"></div>
+              </div>
+            </div>
+
+            <!-- Quiz B -->
+            <div class="question" data-q="2">
+              <div class="qNum">問題 2</div>
+              <div class="qText">關於弧的位置與弧長的關係，哪個正確？</div>
+              <div class="option" data-correct="true"><input type="checkbox" id="q2a"><label
+                  for="q2a">同一個圓中，圓心角固定，弧長不會變</label></div>
+              <div class="option" data-correct="false"><input type="checkbox" id="q2c"><label
+                  for="q2c">位置會影響弧的彎曲程度，進而影響長度</label></div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Section C -->
+        <section class="ev-section" data-sec="C">
+          <div class="ev-row">
+            <!-- Evidence C -->
+            <div class="ev-card" id="cardC" data-id="3">
+              <div class="ev-header">
+                <span>證據 C：弧長公式</span><span style="margin-left:10px;font-weight:800;color:#10b981">v3-overlay</span>
+              </div>
+
+              <div class="ev-body ev-card-c" style="display:block; min-height:auto;">
+
+                <div class="c-split">
+                  <!-- Left: Overlay Canvas -->
+                  <div class="c-left">
+                    <div class="c-overlay">
+                      <canvas id="evCC_full" width="340" height="340"></canvas>
+                      <canvas id="evCC" width="340" height="340"></canvas>
+                    </div>
+                  </div>
+
+                  <!-- Right: Controls & Rulers -->
+                  <div class="c-right">
+                    <!-- Controllers from original -->
+                    <div class="c-ctrl-row" style="background:#fff; padding:0; border:none;">
+                      <div class="ctrl-item">
+                        <span class="ctrl-label" style="width:70px; color:#334155;">角度 θ</span>
+                        <input type="range" class="ctrl-slider" id="sl-angle" min="0" max="360" value="90" step="1">
+                        <span id="val-angle"
+                          style="width:40px; text-align:right; font-weight:700; color:var(--blue);">90°</span>
+                      </div>
+                      <div class="ctrl-item" style="margin-top:10px;">
+                        <span class="ctrl-label" style="width:70px; color:#334155;">半徑 r</span>
+                        <input type="range" class="ctrl-slider" id="sl-radius" min="0.5" max="1.5" value="1.0"
+                          step="0.1">
+                        <span id="val-radius"
+                          style="width:40px; text-align:right; font-weight:700; color:var(--text);">1.0</span>
+                      </div>
+                    </div>
+
+                    <!-- Rulers from original -->
+                    <div class="c-ruler-box" style="margin-top:4px;">
+                      <!-- Angle Bar -->
+                      <div class="ruler-group">
+                        <div class="ruler-label">
+                          <span>角度占比 : θ / 360°</span>
+                          <span id="txt-ratio-angle" style="color:var(--blue); font-weight:700;">25.0%</span>
+                        </div>
+                        <div class="ruler-track">
+                          <div class="ruler-fill angle" id="bar-angle" style="width:25%"></div>
+                        </div>
+                      </div>
+
+                      <div style="text-align:center; margin: 8px 0;">
+                        <span
+                          style="background:#e6fffa; color:#0d9488; padding:2px 10px; border-radius:12px; font-weight:700; font-size:14px;">=
+                          同一比例</span>
+                      </div>
+
+                      <!-- Arc Bar -->
+                      <div class="ruler-group">
+                        <div class="ruler-label">
+                          <span>弧長占比 : L / (2πr)</span>
+                          <span id="txt-ratio-arc" style="color:var(--blue); font-weight:700;">25.0%</span>
+                        </div>
+                        <div class="ruler-track">
+                          <div class="ruler-fill arc" id="bar-arc" style="width:25%"></div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="ev-feedback" id="fbC"></div>
+              </div>
+            </div>
+
+            <!-- Quiz C -->
+            <div class="question" data-q="3">
+              <div class="qNum">問題 3</div>
+              <div class="qText">觀察左圖，最好的說明是？</div>
+              <div class="option" data-correct="true"><input type="checkbox" id="q3a"><label for="q3a">弧長 = 整個圓周長 ×
+                  角度占整圈的比例</label></div>
+              <div class="option" data-correct="false"><input type="checkbox" id="q3b"><label
+                  for="q3b">弧長只和半徑有關，角度不重要</label></div>
+              <div class="option" data-correct="false"><input type="checkbox" id="q3c"><label
+                  for="q3c">弧長只是一個計算規則，沒有特別意義</label></div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Discovery Section (Hidden initially) -->
+        <section class="ev-section" id="sec-discovery"
+          style="display:none; border-top: 2px dashed var(--line); margin-top: 20px; padding-top: 20px;">
+          <div
+            style="background:#e0f2fe; padding:24px; border-radius:12px; border:2px solid #3b82f6; margin-bottom:24px;">
+            <h3 style="margin:0; color:#0369a1; font-size:28px;">🤔 最終挑戰：你的發現</h3>
+            <p style="margin:8px 0 0; font-size:20px;">完成以下兩題來驗證你的結論！</p>
+          </div>
+
+          <div class="question" data-q="4">
+            <div class="qNum">發現一</div>
+            <div class="qText">經過這三次證據的搜集，你覺得決定一條弧長短的最關鍵『兩位主角』是誰？</div>
+            <div class="option" data-correct="false"><input type="radio" name="d1" id="d1a"><label
+                for="d1a">圓心的位置、角度</label></div>
+            <div class="option" data-correct="true"><input type="radio" name="d1" id="d1b"><label
+                for="d1b">半徑的長度、角度</label></div>
+            <div class="option" data-correct="false"><input type="radio" name="d1" id="d1c"><label
+                for="d1c">圓的顏色、半徑</label></div>
+          </div>
+
+          <div class="question" data-q="5">
+            <div class="qNum">發現二</div>
+            <div class="qText">在同一個中心的兩個同心圓軌道上，大衛在半徑較小的內圈，小明在半徑較大的外圈。兩人同時繞中心轉動 90度。誰走的距離比較長？為什麼？</div>
+            <div class="option" data-correct="false"><input type="radio" name="d2" id="d2a"><label for="d2a">一樣長 (因為都轉
+                90 度)</label></div>
+            <div class="option" data-correct="false"><input type="radio" name="d2" id="d2b"><label for="d2b">大衛比較長
+                (因為在內圈)</label></div>
+            <div class="option" data-correct="true"><input type="radio" name="d2" id="d2c"><label for="d2c">小明比較長
+                (因為半徑較大)</label></div>
+          </div>
+        </section>
+
+        <!-- Insight Section -->
+        <div class="insight" id="insight"
+          style="display:none; margin-top:20px; background:linear-gradient(180deg, #fff, #f0fdf4);">
+          <div id="insight-steps">
+            <div class="insight-step" id="is1">
+              <h4>1. 半徑的影響</h4>
+              <p>你發現：角度固定時，半徑越大，弧長越長。</p>
+            </div>
+            <div class="insight-step" id="is2">
+              <h4>2. 位置的影響</h4>
+              <p>你發現：位置不影響弧長，只有角度和半徑會影響。</p>
+            </div>
+            <div class="insight-step" id="is3">
+              <h4>3. 最終歸納</h4>
+              <p>將圓周長 (2πr) 乘上 角度比例 (θ/360°)，就是弧長！</p>
+              <div class="formula">弧長 ＝ 2πr × (θ / 360°)</div>
+              <a href="index.html" class="pri"
+                style="display:inline-block; text-align:center; text-decoration:none; margin-top:12px; width:100%">🎉
+                完成探究，回首頁</a>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script>
+    (function () {
+      'use strict';
+      const TAU = Math.PI * 2, DEG = Math.PI / 180;
+      let stage = 0, ans = [null, null, null];
+      let selR_val = 60, meas = { 60: null, 90: null, 120: null }, measArcs = [];
+      let arcs = [], selA_val = 0, drag = { dragging: false, arcIndex: -1 };
+      const rOpt = [{ val: 60, color: '#17a2b8', lbl: '小' }, { val: 90, color: '#ffc107', lbl: '中' }, { val: 120, color: '#e83e8c', lbl: '大' }];
+      let prot = { x: 0, y: 0, rot: 0, scale: 1, arm1: 0, arm2: Math.PI / 3, draggingRot: false, draggingArm1: false, draggingArm2: false, draggingMove: false, draggingScale: false };
+
+      window.addEventListener('DOMContentLoaded', () => {
+        init();
+        // Unified Stage Entry (Priority: URL Params > Default Stage 0)
+        const params = new URLSearchParams(window.location.search);
+        const sParam = params.get('stage');
+
+        if (sParam === '1.5') setTimeout(() => goS(1.5), 50);
+        else if (sParam) {
+          const sNum = parseFloat(sParam);
+          if (!isNaN(sNum)) setTimeout(() => goS(sNum), 50);
+          else setTimeout(() => goS(0), 50);
+        }
+        else setTimeout(() => goS(0), 50);
+      });
+
+      function init() {
+        drawQ();
+        updateBadge();
+
+        // Event listeners for stage 0
+        document.getElementById('submit0Btn').addEventListener('click', submit0);
+
+        // Tutorial buttons
+        document.getElementById('skipTutBtn').addEventListener('click', closeTut);
+        document.getElementById('startTutBtn').addEventListener('click', closeTut);
+
+        // Restart button (Stage 2 Reset)
+        document.getElementById('restartBtn').addEventListener('click', () => {
+          // Reset Stage 2 inputs
+          document.querySelectorAll('#s2 input[type=checkbox]').forEach(cb => cb.checked = false);
+          document.querySelectorAll('#s2 input[type=text]').forEach(tx => tx.value = '');
+          // Reset submit button state
+          const sBtn = document.getElementById('submit2Btn');
+          if (sBtn) { sBtn.disabled = false; sBtn.textContent = '提交反思'; }
+          // Hide insight
+          // Hide insight & Discovery
+          document.getElementById('insight').classList.remove('show');
+          document.getElementById('insight').style.display = 'none';
+          document.getElementById('sec-discovery').style.display = 'none';
+          document.querySelectorAll('#sec-discovery input').forEach(el => el.checked = false);
+          document.querySelectorAll('#sec-discovery .option').forEach(el => {
+            el.style.background = '#fff';
+            el.style.borderColor = 'var(--line)';
+            el.querySelectorAll('.fb-icon').forEach(i => i.remove());
+          });
+          toast('本階段已重置');
+        });
+
+        // 檢查 URL hash，直接跳到指定階段
+        // Removed Hash Checks to enforce Query Params consistency
+
+        // 監聽階段完成，更新進度
+        window.saveStageProgress = function (s) {
+          try {
+            let completed = JSON.parse(localStorage.getItem('circleExplorerProgress') || '[]');
+            if (!completed.includes(s)) {
+              completed.push(s);
+              localStorage.setItem('circleExplorerProgress', JSON.stringify(completed));
+            }
+          } catch (e) { }
+        };
+      }
+
+      function updateBadge() {
+        // Deprecated: Badge was removed in redesign.
+        // Function kept to prevent ReferenceError if called elsewhere.
+        const b = document.getElementById('badge');
+        if (b) {
+          if (stage === 0) b.textContent = '階段 0：前測';
+          else if (stage === 1) b.textContent = '階段 1：不同半徑';
+          else if (stage === 1.5) b.textContent = '階段 1.5：不同位置';
+          else if (stage === 2) b.textContent = '階段 2：結果分析';
+        }
+      }
+
+      // Tutorial
+      function showTut(s) {
+        const tut = document.getElementById('tut');
+        const title = document.getElementById('tut-title');
+        const body = document.getElementById('tut-body');
+
+        let html = '';
+        if (s === 1) {
+          title.innerHTML = '📖 階段 1 操作教學';
+          html = `
+      <div class="tstep"><div class="num">1</div><div class="txt"><strong>選擇圓</strong><br>點擊上方的「小圓」、「中圓」或「大圓」按鈕</div></div>
+      <div class="tstep"><div class="num">2</div><div class="txt"><strong>移動量角器</strong><br>拖曳量角器的<span style="color:var(--accent);font-weight:700;">中心點</span>可以移動整個量角器</div></div>
+      <div class="tstep"><div class="num">3</div><div class="txt"><strong>旋轉量角器</strong><br>拖曳量角器上方的<span style="color:var(--accent);font-weight:700;">虛線半圓區域</span>可以旋轉整個量角器</div></div>
+      <div class="tstep"><div class="num">4</div><div class="txt"><strong>縮放量角器</strong><br>使用<span style="color:var(--accent);font-weight:700;">滑鼠滾輪</span>或雙指手勢來放大/縮小量角器</div></div>
+      <div class="tstep"><div class="num">5</div><div class="txt"><strong>調整測量臂</strong><br>拖曳<span style="color:#0066cc;font-weight:700;">藍色圓點</span>和<span style="color:#dc3545;font-weight:700;">紅色圓點</span>來調整兩個測量臂的角度</div></div>
+      <div class="tstep"><div class="num">6</div><div class="txt"><strong>對齊並測量</strong><br>將兩個測量臂對準彩色弧的兩端，讀取角度後點擊「記錄測量」</div></div>
+    `;
+        } else if (s === 1.5) {
+          title.innerHTML = '📖 階段 1.5 操作教學';
+          html = `
+      <div class="tstep"><div class="num">1</div><div class="txt"><strong>觀察三個弧</strong><br>畫面中有三個不同顏色的弧，它們的圓心角都是 60°</div></div>
+      <div class="tstep"><div class="num">2</div><div class="txt"><strong>拖曳移動弧</strong><br>點擊並拖曳任意一個彩色弧，可以移動它到不同位置</div></div>
+      <div class="tstep"><div class="num">3</div><div class="txt"><strong>觀察變化</strong><br>注意觀察：當弧移動時，圓心角和弧長是否改變？</div></div>
+      <div class="tstep"><div class="num">4</div><div class="txt"><strong>回答問題</strong><br>在右側勾選你觀察到的現象</div></div>
+    `;
+        }
+
+        body.innerHTML = html;
+        tut.classList.add('show');
+      }
+
+      function closeTut() {
+        document.getElementById('tut').classList.remove('show');
+      }
+
+      // Pretest
+      function drawQ() {
+        const dpr = window.devicePixelRatio || 1;
+        const w = 300, h = 200;
+
+        function setup(id) {
+          const c = document.getElementById(id);
+          const ctx = c.getContext('2d');
+          c.width = w * dpr;
+          c.height = h * dpr;
+          c.style.width = `${w}px`;
+          c.style.height = `${h}px`;
+          ctx.scale(dpr, dpr);
+          ctx.clearRect(0, 0, w, h);
+          return ctx;
+        }
+
+        // Q1
+        const ctx1 = setup('q1');
+        const cx1 = 150, cy1 = 100, r1 = 60;
+        // Circle
+        ctx1.strokeStyle = '#0066cc'; ctx1.lineWidth = 2; ctx1.beginPath(); ctx1.arc(cx1, cy1, r1, 0, TAU); ctx1.stroke();
+        // Sector
+        ctx1.fillStyle = 'rgba(255,193,7,.2)'; ctx1.beginPath(); ctx1.moveTo(cx1, cy1); ctx1.arc(cx1, cy1, r1, -30 * DEG, 30 * DEG); ctx1.closePath(); ctx1.fill();
+        // Points A, B
+        const ax = cx1 + r1 * Math.cos(-30 * DEG), ay = cy1 + r1 * Math.sin(-30 * DEG);
+        const bx = cx1 + r1 * Math.cos(30 * DEG), by = cy1 + r1 * Math.sin(30 * DEG);
+        ctx1.fillStyle = '#0066cc';
+        ctx1.beginPath(); ctx1.arc(cx1, cy1, 4, 0, TAU); ctx1.fill();
+        ctx1.fillText('O', cx1 - 15, cy1 + 5);
+        ctx1.beginPath(); ctx1.arc(ax, ay, 4, 0, TAU); ctx1.fill();
+        ctx1.fillText('A', ax + 8, ay);
+        ctx1.fillStyle = '#dc3545';
+        ctx1.beginPath(); ctx1.arc(bx, by, 4, 0, TAU); ctx1.fill();
+        ctx1.fillStyle = '#212529';
+        ctx1.fillText('B', bx + 8, by + 10);
+        // Arc
+        ctx1.strokeStyle = '#ffc107'; ctx1.lineWidth = 4; ctx1.beginPath(); ctx1.arc(cx1, cy1, r1, -30 * DEG, 30 * DEG); ctx1.stroke();
+        // Text
+        ctx1.font = '700 14px system-ui';
+        ctx1.fillText('60°', cx1 + 20, cy1 + 5);
+        ctx1.fillText('弧 AB 的', bx + 30, by - 20);
+        ctx1.fillText('度數 = ?', bx + 30, by);
+
+        // Q2
+        const ctx2 = setup('q2');
+        // Circle 1 (Small)
+        const cx2a = 100, cy2 = 100, r2a = 40;
+        ctx2.strokeStyle = '#17a2b8'; ctx2.lineWidth = 2; ctx2.beginPath(); ctx2.arc(cx2a, cy2, r2a, 0, TAU); ctx2.stroke();
+        ctx2.fillStyle = 'rgba(23,162,184,.2)'; ctx2.beginPath(); ctx2.moveTo(cx2a, cy2); ctx2.arc(cx2a, cy2, r2a, -90 * DEG, 0); ctx2.closePath(); ctx2.fill();
+        ctx2.strokeStyle = '#17a2b8'; ctx2.lineWidth = 4; ctx2.beginPath(); ctx2.arc(cx2a, cy2, r2a, -90 * DEG, 0); ctx2.stroke();
+        ctx2.fillStyle = '#212529'; ctx2.font = '700 12px system-ui'; ctx2.fillText('90°', cx2a + 10, cy2 - 10);
+        ctx2.fillText('r₁ = 50', cx2a - 20, cy2 + r2a + 20);
+
+        // Circle 2 (Large)
+        const cx2b = 220, r2b = 60;
+        ctx2.strokeStyle = '#e83e8c'; ctx2.lineWidth = 2; ctx2.beginPath(); ctx2.arc(cx2b, cy2, r2b, 0, TAU); ctx2.stroke();
+        ctx2.fillStyle = 'rgba(232,62,140,.2)'; ctx2.beginPath(); ctx2.moveTo(cx2b, cy2); ctx2.arc(cx2b, cy2, r2b, -90 * DEG, 0); ctx2.closePath(); ctx2.fill();
+        ctx2.strokeStyle = '#e83e8c'; ctx2.lineWidth = 4; ctx2.beginPath(); ctx2.arc(cx2b, cy2, r2b, -90 * DEG, 0); ctx2.stroke();
+        ctx2.fillStyle = '#212529'; ctx2.fillText('90°', cx2b + 15, cy2 - 15);
+        ctx2.fillText('r₂ = 100', cx2b - 20, cy2 + r2b + 20);
+
+        // Q3
+        const ctx3 = setup('q3');
+        const cx3 = 150, cy3 = 100, r3 = 60;
+        ctx3.strokeStyle = '#0066cc'; ctx3.lineWidth = 2; ctx3.beginPath(); ctx3.arc(cx3, cy3, r3, 0, TAU); ctx3.stroke();
+        ctx3.fillStyle = 'rgba(255,193,7,.2)'; ctx3.beginPath(); ctx3.moveTo(cx3, cy3); ctx3.arc(cx3, cy3, r3, -30 * DEG, 30 * DEG); ctx3.closePath(); ctx3.fill();
+        ctx3.strokeStyle = '#ffc107'; ctx3.lineWidth = 4; ctx3.beginPath(); ctx3.arc(cx3, cy3, r3, -30 * DEG, 30 * DEG); ctx3.stroke();
+        ctx3.fillStyle = '#0066cc'; ctx3.beginPath(); ctx3.arc(cx3, cy3, 4, 0, TAU); ctx3.fill();
+        ctx3.fillStyle = '#212529'; ctx3.font = '700 14px system-ui';
+        ctx3.fillText('O', cx3 - 15, cy3 + 5);
+        ctx3.fillText('60°', cx3 + 20, cy3 + 5);
+        ctx3.fillText('弧長 L', cx3 + r3 + 10, cy3 - 5);
+        ctx3.fillText('= ?', cx3 + r3 + 10, cy3 + 15);
+      }
+
+      function submit0() {
+        const q1 = document.querySelector('input[name="q1"]:checked');
+        const q2 = document.querySelector('input[name="q2"]:checked');
+        const q3 = document.querySelector('input[name="q3"]:checked');
+
+        if (!q1 || !q2 || !q3) { alert('請完成所有題目'); return }
+
+        ans = [q1.value, q2.value, q3.value];
+        const corr = ['B', 'A', 'B'];
+        let score = 0, fb = '';
+        ans.forEach((a, i) => { if (a === corr[i]) score++ });
+
+        const res = document.getElementById('res0');
+        res.classList.remove('good', 'bad');
+        res.style.display = 'block';
+
+        if (score === 3) {
+          res.classList.add('good');
+          res.innerHTML = `<strong>✅ 太棒了！你答對了全部 3 題！</strong><p>你是圓心角大師！沒錯，弧的度數等於圓心角度數，而弧長則需要公式 L = 2πr × (θ/360°) 來計算。</p>`;
+        } else {
+          res.classList.add('bad');
+          if (ans[0] !== 'B') fb += '<li>💡 <strong>弧的度數定義</strong>：弧的度數就等於它所對應的圓心角度數。所以 60° 的圓心角，對應的弧也是 60°。</li>';
+          if (ans[1] !== 'A') fb += '<li>💡 <strong>弧度數 vs 弧長</strong>：弧的「度數」只看開合的大小（圓心角），所以都是 90°；但弧的「長度」才會因為半徑不同而改變。</li>';
+          if (ans[2] !== 'B') fb += '<li>💡 <strong>弧長公式</strong>：弧長是圓周長的一部分。圓周長是 2πr，所以弧長 = 2πr × (圓心角/360°)。</li>';
+          res.innerHTML = `<strong>你答對了 ${score} / 3 題</strong><p>這些概念很容易搞混，別擔心！</p>${fb ? '<div class="fb"><strong>重點觀念：</strong><ul>' + fb + '</ul></div>' : ''}`;
+        }
+
+        setTimeout(() => {
+          const btn = document.createElement('button');
+          btn.className = 'pri';
+          btn.textContent = '✓ 繼續探究';
+          btn.style.marginTop = '16px';
+          btn.addEventListener('click', () => {
+            if (window.saveStageProgress) window.saveStageProgress(0);
+            goS(1);
+          });
+          res.appendChild(btn);
+        }, 1000);
+      }
+
+      // Stage navigation
+      function goS(s, pushState = true) {
+        // Update URL state without reloading
+        if (pushState) {
+          const url = new URL(window.location);
+          url.searchParams.set('stage', s);
+          window.history.pushState({ stage: s }, '', url);
+        }
+
+        document.querySelectorAll('.stage').forEach(el => el.classList.remove('active'));
+        stage = s;
+        updateBadge();
+        updateNavState(s); // Update Header Logic
+
+        if (s === 0) {
+          document.getElementById('s0').classList.add('active');
+        } else if (s === 1) {
+          document.getElementById('s1').classList.add('active');
+          initS1();
+          setTimeout(() => {
+            document.getElementById('h1').classList.add('show');
+            setTimeout(() => document.getElementById('h1').classList.remove('show'), 5000);
+          }, 1000);
+        } else if (s === 1.5) {
+          document.getElementById('s15').classList.add('active');
+          setTimeout(() => showTut(1.5), 300);
+          initS15();
+          setTimeout(() => {
+            document.getElementById('h15').classList.add('show');
+            setTimeout(() => document.getElementById('h15').classList.remove('show'), 5000);
+          }, 1000);
+        } else if (s === 2) {
+          document.getElementById('s2').classList.add('active');
+          showS2();
+        }
+
+        window.scrollTo(0, 0);
+      }
+
+      // Stage 1
+      function initS1() {
+        const canvas = document.getElementById('c1'), ctx = canvas.getContext('2d');
+
+        measArcs = rOpt.map(o => ({ r: o.val, color: o.color, arcDeg: 60, thetaA: 0, thetaB: 60 * DEG }));
+
+        function fit() {
+          const rect = canvas.getBoundingClientRect();
+          canvas.width = rect.width * window.devicePixelRatio;
+          canvas.height = rect.height * window.devicePixelRatio;
+          ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+          prot.x = rect.width / 2;
+          prot.y = rect.height / 2;
+        }
+
+        fit();
+        window.addEventListener('resize', () => { fit(); draw1() });
+
+        function getEv(e) {
+          const rect = canvas.getBoundingClientRect();
+          // Use clientX directly for Pointer Events (or mouse/touch normalized)
+          return { x: e.clientX - rect.left, y: e.clientY - rect.top };
+        }
+
+        function dist(x1, y1, x2, y2) { return Math.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2) }
+
+        function handleStart(e) {
+          e.preventDefault();
+          const p = getEv(e), px = prot.x, py = prot.y, rot = prot.rot, sc = prot.scale;
+          const dx = p.x - px, dy = p.y - py, d = dist(p.x, p.y, px, py);
+          const rIn = 60 * sc, rOut = 90 * sc;
+
+          // Check center for move (Increased hit area 15->40)
+          if (d < 40) {
+            prot.draggingMove = true;
+            canvas.setPointerCapture(e.pointerId);
+            return
+          }
+
+          // Scale handle (Increased hit area 20->40)
+          const rScale = rOut + 35 * sc;
+          const sx = px + rScale * Math.cos(rot + Math.PI * 0.5), sy = py + rScale * Math.sin(rot + Math.PI * 0.5);
+          if (dist(p.x, p.y, sx, sy) < 40) {
+            prot.draggingScale = true;
+            canvas.setPointerCapture(e.pointerId);
+            return
+          }
+
+          // Check arms (Increased hit area 20->40)
+          const a1x = px + rOut * Math.cos(rot + prot.arm1), a1y = py + rOut * Math.sin(rot + prot.arm1);
+          if (dist(p.x, p.y, a1x, a1y) < 40) {
+            prot.draggingArm1 = true;
+            canvas.setPointerCapture(e.pointerId);
+            return
+          }
+
+          const a2x = px + rOut * Math.cos(rot + prot.arm2), a2y = py + rOut * Math.sin(rot + prot.arm2);
+          if (dist(p.x, p.y, a2x, a2y) < 40) {
+            prot.draggingArm2 = true;
+            canvas.setPointerCapture(e.pointerId);
+            return
+          }
+
+          // Check rotation zone (Expanded band: rIn is inner, rOut is outer)
+          // Original: d >= rIn && d <= rOut + 15 && dy < 0
+          // New: Slightly wider tolerance
+          const relAng = Math.atan2(dy, dx) - rot;
+          // Normalize relative angle to -PI to PI
+          let normAng = relAng;
+          while (normAng <= -Math.PI) normAng += 2 * Math.PI;
+          while (normAng > Math.PI) normAng -= 2 * Math.PI;
+
+          // Check if touch is in the upper half relative to rotation (roughly)
+          // The visual is a semicircle. Let's trust the distance check mostly.
+          if (d >= rIn - 10 && d <= rOut + 30) {
+            // For rotation, check if we are mostly on the arc side
+            // Simpler: Just check distance valid and NOT scale/arms
+            prot.draggingRot = true;
+            canvas.setPointerCapture(e.pointerId);
+            return;
+          }
+        }
+
+        let rafId = null;
+        function handleMove(e) {
+          e.preventDefault();
+          if (!prot.draggingMove && !prot.draggingScale && !prot.draggingRot && !prot.draggingArm1 && !prot.draggingArm2) return;
+
+          const p = getEv(e), px = prot.x, py = prot.y;
+
+          if (rafId) return; // Throttle
+          rafId = requestAnimationFrame(() => {
+            rafId = null;
+
+            if (prot.draggingMove) {
+              prot.x = p.x;
+              prot.y = p.y;
+            } else if (prot.draggingScale) {
+              const d = dist(p.x, p.y, px, py);
+              const baseD = 125;
+              const newSc = d / baseD;
+              prot.scale = Math.max(0.5, Math.min(2.5, newSc));
+            } else if (prot.draggingRot) {
+              prot.rot = Math.atan2(p.y - py, p.x - px);
+            } else if (prot.draggingArm1) {
+              prot.arm1 = Math.atan2(p.y - py, p.x - px) - prot.rot;
+            } else if (prot.draggingArm2) {
+              prot.arm2 = Math.atan2(p.y - py, p.x - px) - prot.rot;
+            }
+            draw1();
+          });
+        }
+
+        function handleEnd(e) {
+          e.preventDefault();
+          prot.draggingMove = false;
+          prot.draggingRot = false;
+          prot.draggingArm1 = false;
+          prot.draggingArm2 = false;
+          prot.draggingScale = false;
+        }
+
+        function handleWheel(e) {
+          e.preventDefault();
+          const delta = e.deltaY > 0 ? 0.95 : 1.05;
+          prot.scale = Math.max(0.5, Math.min(2, prot.scale * delta));
+          draw1();
+        }
+
+        canvas.addEventListener('pointerdown', handleStart);
+        canvas.addEventListener('pointermove', handleMove);
+        canvas.addEventListener('pointerup', handleEnd);
+        canvas.addEventListener('pointercancel', handleEnd);
+        canvas.addEventListener('wheel', handleWheel, { passive: false });
+        canvas.style.touchAction = 'none'; // Prevent scrolling
+
+        // Radius buttons
+        document.querySelectorAll('.rbtn').forEach(btn => {
+          btn.addEventListener('click', () => {
+            selR_val = parseInt(btn.dataset.r);
+            document.querySelectorAll('.rbtn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            draw1();
+          });
+        });
+
+        // Show radius checkbox
+        document.getElementById('showR').addEventListener('change', draw1);
+
+        // Reset button
+        document.getElementById('reset1Btn').addEventListener('click', () => {
+          prot.rot = 0;
+          prot.arm1 = 0;
+          prot.arm2 = Math.PI / 3;
+          prot.scale = 1;
+          const rect = canvas.getBoundingClientRect();
+          prot.x = rect.width / 2;
+          prot.y = rect.height / 2;
+          draw1();
+          toast('量角器已重置');
+        });
+
+        // Help button
+        document.getElementById('help1Btn').addEventListener('click', () => showTut(1));
+
+        // Confused button
+        const confBtn = document.getElementById('confusedBtn');
+        if (confBtn) confBtn.addEventListener('click', () => window.location.href = 'circle_adventure_0104.html');
+
+        // Target Angle Slider
+        const tSlider = document.getElementById('targetAngleSlider');
+        const tVal = document.getElementById('targetAngleVal');
+
+        tSlider.addEventListener('input', (e) => {
+          const val = parseInt(e.target.value);
+          // tVal.textContent = val + '°'; // Hide angle value per user request
+
+          // Update arcs
+          measArcs.forEach(arc => {
+            arc.arcDeg = val;
+            arc.thetaB = val * DEG;
+          });
+
+          // Reset measurements
+          meas = { 60: null, 90: null, 120: null };
+          document.querySelectorAll('#tb1 tr').forEach(tr => {
+            tr.classList.remove('done');
+            const inp = tr.querySelector('input');
+            if (inp) inp.value = '';
+            tr.querySelector('.sc').textContent = '未測量';
+          });
+          updateProg();
+          document.getElementById('btn1').disabled = true;
+
+          draw1();
+        });
+
+        // Manual input validation logic
+        document.querySelectorAll('.manual-input').forEach(input => {
+          input.addEventListener('change', (e) => {
+            const r = parseInt(e.target.dataset.r);
+            const val = parseFloat(e.target.value);
+            if (isNaN(val)) return;
+
+            meas[r] = val;
+            updateLog1();
+            checkDone1();
+          });
+        });
+
+        // Record button (Removed/Hidden) but keeping listener placeholder if needed or just remove it.
+        // document.getElementById('record1Btn').addEventListener('click', () => { ... });
+
+        // Next stage button
+        document.getElementById('btn1').addEventListener('click', () => {
+          if (window.saveStageProgress) window.saveStageProgress(1);
+          goS(1.5);
+        });
+
+        // Guide toggle
+        const guideToggle1 = document.getElementById('guideToggle1');
+        const guideSteps1 = document.getElementById('guideSteps1');
+        const arrow1 = guideToggle1.querySelector('.toggle');
+        // 預設收合，不展開
+        guideToggle1.addEventListener('click', () => {
+          guideSteps1.classList.toggle('show');
+          arrow1.textContent = guideSteps1.classList.contains('show') ? '▼' : '►';
+        });
+
+        // Toggle Protractor (added)
+        const togBtn = document.getElementById('toggleProtBtn');
+        if (togBtn) {
+          togBtn.addEventListener('click', () => {
+            const isHidden = togBtn.textContent.includes('顯示');
+            togBtn.textContent = isHidden ? '👁️ 隱藏量角器' : '👁️ 顯示量角器';
+            draw1();
+          });
+        }
+
+        draw1();
+      }
+
+      function draw1() {
+        const canvas = document.getElementById('c1'), ctx = canvas.getContext('2d');
+        const rect = canvas.getBoundingClientRect();
+        ctx.clearRect(0, 0, rect.width, rect.height);
+
+        const cx = rect.width / 2, cy = rect.height / 2, scale = Math.min(rect.width, rect.height) / 260;
+        const showR = document.getElementById('showR')?.checked ?? true;
+
+        measArcs.forEach(arc => {
+          const r = arc.r * scale, isSel = arc.r === selR_val;
+
+          ctx.save();
+          ctx.strokeStyle = arc.color;
+          ctx.globalAlpha = isSel ? .5 : .2;
+          ctx.lineWidth = isSel ? 4 : 3;
+          ctx.beginPath();
+          ctx.arc(cx, cy, r, 0, TAU);
+          ctx.stroke();
+          ctx.restore();
+
+          if (isSel) {
+            ctx.save();
+            ctx.fillStyle = arc.color;
+            ctx.globalAlpha = .08;
+            ctx.beginPath();
+            ctx.moveTo(cx, cy);
+            ctx.arc(cx, cy, r, arc.thetaA, arc.thetaB);
+            ctx.closePath();
+            ctx.fill();
+            ctx.restore();
+          }
+
+          ctx.save();
+          ctx.strokeStyle = arc.color;
+          ctx.lineWidth = isSel ? 12 : 8;
+          ctx.lineCap = 'round';
+          ctx.globalAlpha = isSel ? 1 : .4;
+          ctx.beginPath();
+          ctx.arc(cx, cy, r, arc.thetaA, arc.thetaB);
+          ctx.stroke();
+          ctx.restore();
+
+          if (showR && isSel) {
+            ctx.save();
+            ctx.strokeStyle = arc.color;
+            ctx.lineWidth = 3;
+            ctx.globalAlpha = .6;
+            ctx.setLineDash([5, 5]);
+            ctx.beginPath();
+            ctx.moveTo(cx, cy);
+            const x1 = cx + r * Math.cos(arc.thetaA), y1 = cy + r * Math.sin(arc.thetaA);
+            ctx.lineTo(x1, y1);
+            ctx.stroke();
+            ctx.beginPath();
+            ctx.moveTo(cx, cy);
+            const x2 = cx + r * Math.cos(arc.thetaB), y2 = cy + r * Math.sin(arc.thetaB);
+            ctx.lineTo(x2, y2);
+            ctx.stroke();
+            ctx.restore();
+          }
+        });
+
+        ctx.save();
+        ctx.fillStyle = 'rgba(255,255,255,.95)';
+        ctx.beginPath();
+        ctx.arc(cx, cy, 6, 0, TAU);
+        ctx.fill();
+        ctx.strokeStyle = '#ff6b35';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+        ctx.fillStyle = '#212529';
+        ctx.font = '700 20px system-ui';
+        ctx.fillText('O', cx + 12, cy - 10);
+        ctx.restore();
+
+        const btn = document.getElementById('toggleProtBtn');
+        const shouldShow = !btn || btn.textContent.includes('隱藏');
+        if (shouldShow) drawProt(ctx);
+      }
+
+      function drawProt(ctx) {
+        const px = prot.x, py = prot.y, rot = prot.rot, sc = prot.scale, rIn = 60 * sc, rOut = 90 * sc;
+
+        ctx.save();
+        ctx.translate(px, py);
+        ctx.rotate(rot);
+
+        ctx.fillStyle = 'rgba(255,255,255,.4)';
+        ctx.strokeStyle = '#495057';
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.arc(0, 0, rOut, 0, Math.PI);
+        ctx.arc(0, 0, rIn, Math.PI, 0, true);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.strokeStyle = 'rgba(255,107,53,.35)';
+        ctx.lineWidth = 2;
+        ctx.setLineDash([6, 6]);
+        ctx.beginPath();
+        ctx.arc(0, 0, rOut + 15, 0, Math.PI);
+        ctx.stroke();
+        ctx.setLineDash([]);
+
+        ctx.strokeStyle = '#495057';
+        ctx.fillStyle = '#212529';
+        ctx.font = `700 ${18 * sc}px system-ui`;
+        ctx.textAlign = 'center';
+
+        for (let deg = 0; deg <= 180; deg += 10) {
+          const rad = deg * DEG, x1 = rOut * Math.cos(rad), y1 = rOut * Math.sin(rad);
+          const len = (deg % 30 === 0) ? 12 * sc : 8 * sc, x2 = (rOut - len) * Math.cos(rad), y2 = (rOut - len) * Math.sin(rad);
+          ctx.lineWidth = (deg % 30 === 0) ? 3 : 2;
+          ctx.beginPath();
+          ctx.moveTo(x1, y1);
+          ctx.lineTo(x2, y2);
+          ctx.stroke();
+          if (deg % 30 === 0) {
+            const tx = (rOut - 24 * sc) * Math.cos(rad), ty = (rOut - 24 * sc) * Math.sin(rad);
+            ctx.fillText(deg + '°', tx, ty + 4 * sc);
+          }
+        }
+
+        ctx.strokeStyle = '#6c757d';
+        for (let deg = 0; deg <= 180; deg += 10) {
+          const rad = deg * DEG, x1 = rIn * Math.cos(rad), y1 = rIn * Math.sin(rad);
+          const len = (deg % 30 === 0) ? 10 * sc : 6 * sc, x2 = (rIn + len) * Math.cos(rad), y2 = (rIn + len) * Math.sin(rad);
+          ctx.lineWidth = (deg % 30 === 0) ? 2.5 : 1.5;
+          ctx.beginPath();
+          ctx.moveTo(x1, y1);
+          ctx.lineTo(x2, y2);
+          ctx.stroke();
+        }
+
+        ctx.restore();
+
+        ctx.save();
+        ctx.translate(px, py);
+        ctx.rotate(rot + prot.arm1);
+        ctx.strokeStyle = '#0066cc';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(0, 0);
+        ctx.lineTo(rOut, 0);
+        ctx.stroke();
+        ctx.fillStyle = '#0066cc';
+        ctx.beginPath();
+        ctx.arc(rOut, 0, 5 * sc, 0, TAU); // Smaller point
+        ctx.fill();
+        ctx.strokeStyle = '#fff';
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+        ctx.restore();
+
+        ctx.save();
+        ctx.translate(px, py);
+        ctx.rotate(rot + prot.arm2);
+        ctx.strokeStyle = '#dc3545';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(0, 0);
+        ctx.lineTo(rOut, 0);
+        ctx.stroke();
+        ctx.fillStyle = '#dc3545';
+        ctx.beginPath();
+        ctx.arc(rOut, 0, 5 * sc, 0, TAU); // Smaller point
+        ctx.fill();
+        ctx.strokeStyle = '#fff';
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+        ctx.restore();
+
+        // Scale Handle
+        ctx.save();
+        ctx.translate(px, py);
+        ctx.rotate(rot + Math.PI * 0.5);
+        ctx.translate(rOut + 35 * sc, 0);
+        ctx.fillStyle = '#fff';
+        ctx.strokeStyle = '#6c757d';
+        ctx.lineWidth = 2;
+        ctx.shadowColor = 'rgba(0,0,0,0.1)';
+        ctx.shadowBlur = 4;
+        ctx.beginPath();
+        ctx.arc(0, 0, 8 * sc, 0, TAU);
+        ctx.fill();
+        ctx.stroke();
+        // Icon inside
+        ctx.fillStyle = '#6c757d';
+        ctx.beginPath();
+        ctx.arc(0, 0, 3 * sc, 0, TAU);
+        ctx.fill();
+        ctx.restore();
+
+        ctx.save();
+        ctx.fillStyle = '#ff6b35';
+        ctx.strokeStyle = '#fff';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(px, py, 6 * sc, 0, TAU); // Smaller center
+        ctx.fill();
+        ctx.stroke();
+        ctx.restore();
+
+        let ang = prot.arm2 - prot.arm1;
+        while (ang < 0) ang += TAU;
+        while (ang > Math.PI) ang = TAU - ang;
+
+        ctx.save();
+        ctx.translate(px, py);
+        ctx.rotate(rot);
+        ctx.strokeStyle = '#ff6b35';
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        const arcR = (rIn + rOut) / 2;
+        ctx.arc(0, 0, arcR * .4, prot.arm1, prot.arm1 + ang);
+        ctx.stroke();
+
+        // const angDeg = Math.round(ang / DEG);
+        // ctx.fillStyle = '#ff6b35';
+        // ctx.font = `700 ${16 * sc}px system-ui`;
+        // ctx.textAlign = 'center';
+        // const midAng = prot.arm1 + ang / 2, labelR = arcR * .55;
+        // const lx = labelR * Math.cos(midAng), ly = labelR * Math.sin(midAng);
+        // ctx.fillText(angDeg + '°', lx, ly + 6 * sc);
+
+        ctx.restore();
+      }
+
+      function updateLog1() {
+        rOpt.forEach(o => {
+          const row = document.querySelector(`#tb1 tr[data-r="${o.val}"]`), val = meas[o.val];
+          if (val !== null) {
+            row.classList.add('done');
+            const arc = measArcs.find(a => a.r === o.val), actualDeg = arc ? arc.arcDeg : 60;
+            const err = Math.abs(val - actualDeg);
+            let status = '';
+            if (err <= 1) status = '⭐ 完美';
+            else if (err <= 3) status = '✓ 很好';
+            else if (err <= 6) status = '○ 不錯';
+            else if (err <= 10) status = '△ 可再試';
+            else status = '✗ 再試試';
+            row.querySelector('input').value = val; // Ensure value is set
+            row.querySelector('.sc').textContent = `${status} (誤差${Math.round(err)}°)`;
+          }
+        });
+        updateProg();
+      }
+
+      function updateProg() {
+        const cnt = Object.values(meas).filter(v => v !== null).length, pct = (cnt / 3) * 100;
+        document.getElementById('prog').style.width = pct + '%';
+        document.getElementById('progt').textContent = `${cnt} / 3 完成`;
+        document.getElementById('progp').textContent = Math.round(pct) + '%';
+      }
+
+      function checkDone1() {
+        const cnt = Object.values(meas).filter(v => v !== null).length;
+        if (cnt === 3) {
+          document.getElementById('btn1').disabled = false;
+          toast('🎉 太棒了！你完成了所有測量！');
+        }
+      }
+
+      function toast(msg) {
+        const t = document.getElementById('toast');
+        t.textContent = msg;
+        t.classList.add('show');
+        setTimeout(() => t.classList.remove('show'), 3500);
+      }
+
+      // Stage 1.5
+      function initS15() {
+        const canvas = document.getElementById('c15'), ctx = canvas.getContext('2d');
+        const rad = 100, arcAng = 60 * DEG;
+
+        arcs = [
+          { centerAngle: 30 * DEG, color: '#17a2b8', label: '弧 1', angle: arcAng },
+          { centerAngle: 120 * DEG, color: '#ffc107', label: '弧 2', angle: arcAng },
+          { centerAngle: 210 * DEG, color: '#e83e8c', label: '弧 3', angle: arcAng }
+        ];
+
+        function fit() {
+          const rect = canvas.getBoundingClientRect();
+          canvas.width = rect.width * window.devicePixelRatio;
+          canvas.height = rect.height * window.devicePixelRatio;
+          ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+        }
+
+        fit();
+        window.addEventListener('resize', () => { fit(); draw15() });
+
+        function getEv(e) {
+          const rect = canvas.getBoundingClientRect();
+          const cx = e.touches ? e.touches[0].clientX : e.clientX;
+          const cy = e.touches ? e.touches[0].clientY : e.clientY;
+          return { x: cx - rect.left, y: cy - rect.top };
+        }
+
+        function handleStart(e) {
+          e.preventDefault();
+          // Pointer Events support
+          const rect = canvas.getBoundingClientRect();
+          // e.clientX is safer for pointer events and consistent with rect
+          const px = e.clientX - rect.left;
+          const py = e.clientY - rect.top;
+
+          const cx = rect.width / 2, cy = rect.height / 2;
+          // Match the radius logic from draw15 exactly
+          const rad = Math.min(rect.width, rect.height) * .28;
+          const tolerance = 40; // 40px hit tolerance around the ring
+
+          for (let i = arcs.length - 1; i >= 0; i--) {
+            const arc = arcs[i], midAng = arc.centerAngle;
+
+            const dx = px - cx, dy = py - cy, dist = Math.sqrt(dx * dx + dy * dy);
+            const ang = Math.atan2(dy, dx);
+
+            // Hit detection with correct dynamic radius
+            if (Math.abs(dist - rad) < tolerance) {
+              // Angle check logic...
+              let touchAng = ang;
+              if (touchAng < 0) touchAng += TAU;
+              let aStart = (midAng - arc.angle / 2) % TAU;
+              if (aStart < 0) aStart += TAU;
+              let aEnd = (midAng + arc.angle / 2) % TAU;
+              if (aEnd < 0) aEnd += TAU;
+
+              // Robust angle inclusion check
+              let inside;
+              if (Math.abs(aEnd - aStart) < 0.001) inside = false; // Empty
+              else if (aStart < aEnd) inside = touchAng >= aStart && touchAng <= aEnd;
+              else inside = touchAng >= aStart || touchAng <= aEnd;
+
+              if (inside) {
+                drag.dragging = true;
+                drag.arcIndex = i;
+                selA(i);
+                canvas.setPointerCapture(e.pointerId); // Crucial for touch
+                return;
+              }
+            }
+          }
+        }
+
+        let rafId15 = null;
+        function handleMove(e) {
+          e.preventDefault();
+          if (!drag.dragging) return;
+
+          if (rafId15) return;
+          rafId15 = requestAnimationFrame(() => {
+            rafId15 = null;
+            const rect = canvas.getBoundingClientRect();
+            const cx = rect.width / 2, cy = rect.height / 2;
+            const dx = e.clientX - rect.left - cx;
+            const dy = e.clientY - rect.top - cy;
+            let ang = Math.atan2(dy, dx);
+            if (ang < 0) ang += TAU;
+
+            arcs[drag.arcIndex].centerAngle = ang;
+            draw15();
+          });
+        }
+
+        function handleEnd(e) {
+          e.preventDefault();
+          drag.dragging = false;
+          drag.arcIndex = -1;
+          // Implicit release of pointer capture
+        }
+
+        canvas.addEventListener('pointerdown', handleStart);
+        canvas.addEventListener('pointermove', handleMove);
+        canvas.addEventListener('pointerup', handleEnd);
+        canvas.addEventListener('pointercancel', handleEnd);
+        // Remove old listeners to avoid conflicts (though we are replacing the block)
+        canvas.style.touchAction = "none"; // CSS for canvas to prevent scrolling
+
+        // Arc buttons
+        document.querySelectorAll('.abtn').forEach(btn => {
+          btn.addEventListener('click', () => {
+            const idx = parseInt(btn.dataset.arc);
+            selA(idx);
+          });
+        });
+
+        // Random button
+        document.getElementById('randABtn').addEventListener('click', () => {
+          arcs.forEach(arc => arc.centerAngle = Math.random() * TAU);
+          draw15();
+          toast('弧的位置已隨機排列');
+        });
+
+        // Reset button
+        document.getElementById('resetABtn').addEventListener('click', () => {
+          arcs[0].centerAngle = 30 * DEG;
+          arcs[1].centerAngle = 120 * DEG;
+          arcs[2].centerAngle = 210 * DEG;
+          draw15();
+          toast('弧的位置已重置');
+        });
+
+        // Submit button
+        document.getElementById('submit15Btn').addEventListener('click', () => {
+          // Clear previous hints
+          document.querySelectorAll('.q-hint').forEach(h => {
+            h.textContent = '';
+            h.classList.remove('show');
+          });
+
+          // Validation Check: Are all completed?
+          const q1Filled = document.getElementById('obs1a').checked || document.getElementById('obs1b').checked;
+          const q2Filled = document.getElementById('obs2a').checked || document.getElementById('obs2b').checked;
+          const q3Filled = document.getElementById('obs3Input') && document.getElementById('obs3Input').value.trim().length > 0;
+          const q4Filled = document.getElementById('obs4a').checked || document.getElementById('obs4b').checked;
+
+          if (!q1Filled || !q2Filled || !q3Filled || !q4Filled) {
+            alert('請完成所有觀察問題');
+            return;
+          }
+
+          let allCorrect = true;
+
+          // Q1 Logic: Correct = obs1b (不會改變)
+          if (document.getElementById('obs1a').checked) {
+            const h = document.getElementById('hint1');
+            h.textContent = '可以試著將三個旋轉疊疊看喔!';
+            h.classList.add('show');
+            allCorrect = false;
+          }
+
+          // Q2 Logic: Correct = obs2b (不會改變)
+          if (document.getElementById('obs2a').checked) {
+            const h = document.getElementById('hint2');
+            h.textContent = '可嘗試將弧重疊比對';
+            h.classList.add('show');
+            allCorrect = false;
+          }
+
+          // Q3 Logic: Correct = "圓心角"
+          const val3 = document.getElementById('obs3Input').value.trim();
+          if (val3 !== '圓心角') {
+            const h = document.getElementById('hint3');
+            h.textContent = '請再觀察旋轉三個扇形。';
+            h.classList.add('show');
+            allCorrect = false;
+          }
+
+          // Q4 Logic: Correct = obs4a (會重疊)
+          if (document.getElementById('obs4b').checked) {
+            const h = document.getElementById('hint4');
+            h.textContent = '可嘗試將弧再移動重疊，進行觀察!';
+            h.classList.add('show');
+            allCorrect = false;
+          }
+
+          if (allCorrect) {
+            alert('恭喜全部答對~可以進入下一階段!');
+            document.getElementById('btn15').disabled = false;
+            toast('✓ 觀察已提交！');
+          }
+        });
+
+        // Angle Slider
+        const angSlide = document.getElementById('commonAngleSlider');
+        const angVal = document.getElementById('commonAngleVal');
+
+        angSlide.addEventListener('input', (e) => {
+          const val = parseInt(e.target.value);
+          angVal.textContent = val + '°';
+          const newRad = val * DEG;
+          arcs.forEach(arc => arc.angle = newRad);
+          draw15();
+        });
+
+        // Next button
+        document.getElementById('btn15').addEventListener('click', () => {
+          if (window.saveStageProgress) window.saveStageProgress(1.5);
+          goS(2);
+        });
+
+        // Guide toggle
+        const guideToggle15 = document.getElementById('guideToggle15');
+        const guideSteps15 = document.getElementById('guideSteps15');
+        const arrow15 = guideToggle15.querySelector('.toggle');
+        // 預設收合
+        guideToggle15.addEventListener('click', () => {
+          guideSteps15.classList.toggle('show');
+          arrow15.textContent = guideSteps15.classList.contains('show') ? '▼' : '►';
+        });
+
+        draw15();
+      }
+
+      function draw15() {
+        const canvas = document.getElementById('c15'), ctx = canvas.getContext('2d');
+        const rect = canvas.getBoundingClientRect();
+        ctx.clearRect(0, 0, rect.width, rect.height);
+
+        const cx = rect.width / 2, cy = rect.height / 2, rad = Math.min(rect.width, rect.height) * .28;
+
+        ctx.save();
+        ctx.strokeStyle = '#dee2e6';
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.arc(cx, cy, rad, 0, TAU);
+        ctx.stroke();
+        ctx.restore();
+
+        arcs.forEach((arc, i) => {
+          const isSel = i === selA_val, startAng = arc.centerAngle - arc.angle / 2, endAng = arc.centerAngle + arc.angle / 2;
+
+          ctx.save();
+          ctx.fillStyle = arc.color;
+          ctx.globalAlpha = isSel ? .12 : .06;
+          ctx.beginPath();
+          ctx.moveTo(cx, cy);
+          ctx.arc(cx, cy, rad, startAng, endAng);
+          ctx.closePath();
+          ctx.fill();
+          ctx.restore();
+
+          ctx.save();
+          ctx.strokeStyle = arc.color;
+          ctx.lineWidth = isSel ? 15 : 10;
+          ctx.lineCap = 'round';
+          ctx.globalAlpha = isSel ? 1 : .7;
+          ctx.beginPath();
+          ctx.arc(cx, cy, rad, startAng, endAng);
+          ctx.stroke();
+          ctx.restore();
+
+          ctx.save();
+          ctx.strokeStyle = arc.color;
+          ctx.lineWidth = isSel ? 3.5 : 2;
+          ctx.globalAlpha = isSel ? .7 : .4;
+          ctx.setLineDash([5, 5]);
+          ctx.beginPath();
+          ctx.moveTo(cx, cy);
+          const x1 = cx + rad * Math.cos(startAng), y1 = cy + rad * Math.sin(startAng);
+          ctx.lineTo(x1, y1);
+          ctx.stroke();
+          ctx.beginPath();
+          ctx.moveTo(cx, cy);
+          const x2 = cx + rad * Math.cos(endAng), y2 = cy + rad * Math.sin(endAng);
+          ctx.lineTo(x2, y2);
+          ctx.stroke();
+          ctx.restore();
+
+          const labelAng = arc.centerAngle, labelDist = rad + (isSel ? 35 : 30);
+          const lx = cx + labelDist * Math.cos(labelAng), ly = cy + labelDist * Math.sin(labelAng);
+          ctx.save();
+          ctx.fillStyle = arc.color;
+          ctx.font = isSel ? '700 18px system-ui' : '600 16px system-ui';
+          ctx.textAlign = 'center';
+          ctx.fillText(arc.label, lx, ly);
+          ctx.restore();
+
+          if (isSel) {
+            ctx.save();
+            ctx.strokeStyle = arc.color;
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.arc(cx, cy, rad * .35, startAng, endAng);
+            ctx.stroke();
+            const angDeg = Math.round(arc.angle / DEG);
+            ctx.fillStyle = arc.color;
+            ctx.font = '700 18px system-ui';
+            ctx.textAlign = 'center';
+            const ax = cx + rad * .45 * Math.cos(labelAng), ay = cy + rad * .45 * Math.sin(labelAng);
+            ctx.fillText(angDeg + '°', ax, ay + 5);
+            ctx.restore();
+          }
+        });
+
+        ctx.save();
+        ctx.fillStyle = 'rgba(255,255,255,.95)';
+        ctx.beginPath();
+        ctx.arc(cx, cy, 6, 0, TAU);
+        ctx.fill();
+        ctx.strokeStyle = '#ff6b35';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+        ctx.fillStyle = '#212529';
+        ctx.font = '700 20px system-ui';
+        ctx.fillText('O', cx + 12, cy - 10);
+        ctx.restore();
+      }
+
+      function selA(i) {
+        selA_val = i;
+        document.querySelectorAll('.abtn').forEach(b => b.classList.toggle('active', parseInt(b.dataset.arc) === i));
+        draw15();
+      }
+
+      // <!-- CHANGED: Stage 2 Logic Start -->
+      function showS2() {
+        // Redraw content
+        setTimeout(() => {
+          fitCanvas('evCA', drawEvA);
+          fitCanvas('evCB', drawEvB);
+          // fitCanvas('evCC', drawEvC); // Handled by updateStage2C
+          updateStage2C(); // Call new Stage 2 C update function
+          initStage2Interactions();
+        }, 100);
+
+        // Reset state
+        document.querySelectorAll('.ev-feedback').forEach(el => el.classList.remove('show', 'warn', 'ok'));
+        document.querySelectorAll('input[type=checkbox]').forEach(el => el.checked = false);
+        // Clear old specific feedback
+        document.querySelectorAll('.fb-icon').forEach(el => el.remove());
+      }
+
+      function fitCanvas(id, drawFn) {
+        const c = document.getElementById(id);
+        if (!c) return;
+        const rect = c.parentElement.getBoundingClientRect();
+        const dpr = window.devicePixelRatio || 1;
+
+        // Use container dimensions or defaults
+        const w = rect.width || 200;
+        const h = rect.height || 200;
+
+        c.width = w * dpr;
+        c.height = h * dpr;
+        c.style.width = w + 'px';
+        c.style.height = h + 'px';
+
+        const ctx = c.getContext('2d');
+        ctx.resetTransform();
+        ctx.scale(dpr, dpr);
+        drawFn(ctx, w, h);
+      }
+
+      // <!-- CHANGED: Stage 2 Evidence Card A -->
+      function drawEvA(ctx, w, h) {
+        const cx = w / 2;
+        const cy = h * 0.9;
+        const maxR = h * 0.7;
+        const startAng = Math.PI + Math.PI * 0.25;
+        const endAng = Math.PI + Math.PI * 0.75;
+
+        ctx.beginPath();
+        ctx.arc(cx, cy, 6, 0, Math.PI * 2);
+        ctx.fillStyle = '#ef4444'; ctx.fill();
+
+        ctx.beginPath(); ctx.strokeStyle = '#3b82f6'; ctx.lineWidth = 3;
+        ctx.moveTo(cx, cy); ctx.lineTo(cx + maxR * Math.cos(startAng), cy + maxR * Math.sin(startAng));
+        ctx.moveTo(cx, cy); ctx.lineTo(cx + maxR * Math.cos(endAng), cy + maxR * Math.sin(endAng));
+        ctx.stroke();
+
+        const radii = [maxR * 0.45, maxR * 0.65, maxR * 0.85];
+        const colors = ['#93c5fd', '#60a5fa', '#2563eb'];
+        radii.forEach((r, i) => {
+          ctx.beginPath(); ctx.strokeStyle = colors[i]; ctx.lineWidth = 10 + (i * 4); ctx.lineCap = 'round';
+          ctx.arc(cx, cy, r, startAng, endAng); ctx.stroke();
+        });
+      }
+
+      // <!-- CHANGED: Stage 2 Evidence Card B -->
+      function drawEvB(ctx, w, h) {
+        const cx = w / 2, cy = h / 2, r = Math.min(w, h) * 0.35;
+        ctx.beginPath(); ctx.strokeStyle = '#e2e8f0'; ctx.lineWidth = 2; ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.stroke();
+        const arcs = [{ start: 5.7, color: '#3b82f6' }, { start: 3.5, color: '#eab308' }, { start: 2.1, color: '#ec4899' }];
+        arcs.forEach((arc) => {
+          const end = arc.start + Math.PI / 3;
+          ctx.beginPath(); ctx.moveTo(cx, cy); ctx.arc(cx, cy, r, arc.start, end); ctx.closePath();
+          ctx.fillStyle = arc.color; ctx.globalAlpha = 0.15; ctx.fill(); ctx.globalAlpha = 1.0;
+          ctx.beginPath(); ctx.strokeStyle = arc.color; ctx.lineWidth = 2; ctx.setLineDash([6, 6]);
+          ctx.moveTo(cx, cy); ctx.lineTo(cx + r * Math.cos(arc.start), cy + r * Math.sin(arc.start));
+          ctx.moveTo(cx, cy); ctx.lineTo(cx + r * Math.cos(end), cy + r * Math.sin(end));
+          ctx.stroke(); ctx.setLineDash([]);
+          ctx.beginPath(); ctx.strokeStyle = arc.color; ctx.lineWidth = 10; ctx.lineCap = 'round';
+          ctx.arc(cx, cy, r, arc.start, end); ctx.stroke();
+        });
+      }
+
+      // <!-- CHANGED: Stage 2 Evidence Card C (New Visuals) -->
+      // [Stage2-C] patched v3-overlay
+      function updateStage2C() {
+        const elIds = ['sl-angle', 'sl-radius', 'val-angle', 'val-radius', 'txt-ratio-angle', 'txt-ratio-arc', 'bar-angle', 'bar-arc', 'evCC'];
+        const els = {};
+        for (let id of elIds) {
+          const el = document.getElementById(id);
+          if (!el) { console.warn('Stage2-C 節點未找到:', id); return; }
+          els[id] = el;
+        }
+
+        const angle = parseInt(els['sl-angle'].value, 10);
+        const radius = parseFloat(els['sl-radius'].value);
+        const ratio = angle / 360;
+
+        // Update Text
+        els['val-angle'].textContent = angle + '°';
+        els['val-radius'].textContent = radius.toFixed(1);
+
+        const pctStr = (ratio * 100).toFixed(1) + '%';
+        els['txt-ratio-angle'].textContent = pctStr;
+        els['txt-ratio-arc'].textContent = pctStr;
+
+        // Update Bars
+        els['bar-angle'].style.width = (ratio * 100) + '%';
+        els['bar-arc'].style.width = (ratio * 100) + '%';
+
+        const dpr = window.devicePixelRatio || 1;
+
+        // Helper to init canvas size
+        function initCV(cv) {
+          if (cv.width !== 340 * dpr) {
+            cv.width = 340 * dpr;
+            cv.height = 340 * dpr;
+            cv.style.width = '340px'; // 340 for overlay
+            cv.style.height = '340px';
+          }
+          const ctx = cv.getContext('2d');
+          ctx.resetTransform();
+          ctx.scale(dpr, dpr);
+          return ctx;
+        }
+
+        const w = 340, h = 340, cx = 170, cy = 170;
+        const r = 100 * radius;
+        const startAng = -Math.PI / 2;
+        const endAng = startAng + (angle * Math.PI / 180);
+
+        // -- Layer 1: Bottom (Full Circle + Highlight Arc) --
+        const cvFull = document.getElementById('evCC_full');
+        if (cvFull) {
+          const ctxF = initCV(cvFull);
+          ctxF.clearRect(0, 0, w, h);
+
+          // Full Circle (Grey)
+          ctxF.beginPath();
+          ctxF.strokeStyle = '#cbd5e1'; // slate-300
+          ctxF.lineWidth = 4;
+          ctxF.arc(cx, cy, r, 0, Math.PI * 2);
+          ctxF.stroke();
+
+          // Highlight Arc (Green) on bottom layer too for reference
+          ctxF.beginPath();
+          ctxF.strokeStyle = '#10b981';
+          ctxF.lineWidth = 4;
+          ctxF.arc(cx, cy, r, startAng, endAng);
+          ctxF.stroke();
+        }
+
+        // -- Layer 2: Top (Sector + Labels) --
+        const canvas = els['evCC'];
+        const ctx = initCV(canvas);
+        ctx.clearRect(0, 0, w, h);
+
+        // Sector (Blue)
+        ctx.beginPath();
+        ctx.moveTo(cx, cy);
+        ctx.arc(cx, cy, r, startAng, endAng);
+        ctx.closePath();
+        ctx.fillStyle = 'rgba(59, 130, 246, 0.3)';
+        ctx.fill();
+
+        // 2 Radius Lines
+        ctx.beginPath();
+        ctx.strokeStyle = '#3b82f6';
+        ctx.lineWidth = 2;
+        ctx.moveTo(cx, cy); ctx.lineTo(cx + r * Math.cos(startAng), cy + r * Math.sin(startAng));
+        ctx.moveTo(cx, cy); ctx.lineTo(cx + r * Math.cos(endAng), cy + r * Math.sin(endAng));
+        ctx.stroke();
+
+        // Arc (Thicker Green on top)
+        ctx.beginPath();
+        ctx.strokeStyle = '#10b981';
+        ctx.lineWidth = 8; // Thicker than bottom
+        ctx.lineCap = 'round';
+        ctx.arc(cx, cy, r, startAng, endAng);
+        ctx.stroke();
+
+        // Theta Text
+        if (angle > 0) {
+          ctx.fillStyle = '#1d4ed8'; // Darker blue
+          ctx.font = 'bold 16px monospace';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          const mid = startAng + (endAng - startAng) / 2;
+          // Push text out a bit
+          const tx = cx + (r * 0.4) * Math.cos(mid);
+          const ty = cy + (r * 0.4) * Math.sin(mid);
+          ctx.fillText(angle + '°', tx, ty);
+        }
+
+        // L Text
+        ctx.fillStyle = '#0f172a';
+        ctx.font = '14px system-ui';
+        ctx.textAlign = 'center';
+        // Position at bottom center
+        ctx.fillText('L ≈ ' + (2 * Math.PI * (radius) * (angle / 360)).toFixed(2) + ' units', cx, h - 8);
+
+        if (!window._s2cLogged) {
+          console.log('[Stage2-C] overlay full-circle OK');
+          window._s2cLogged = true;
+        }
+      }
+
+
+
+      /*
+      // Update Text
+      els['val-angle'].textContent = angle + '°';
+      els['val-radius'].textContent = radius.toFixed(1);
+
+      const pctStr = (ratio * 100).toFixed(1) + '%';
+      els['txt-ratio-angle'].textContent = pctStr;
+      els['txt-ratio-arc'].textContent = pctStr;
+
+      // Update Bars
+      els['bar-angle'].style.width = (ratio * 100) + '%';
+      els['bar-arc'].style.width = (ratio * 100) + '%';
+
+      // Draw Canvas
+      const canvas = els['evCC'];
+      const ctx = canvas.getContext('2d');
+      const dpr = window.devicePixelRatio || 1;
+      // Ensure size 240x240
+      if (canvas.width !== 240 * dpr) {
+        canvas.width = 240 * dpr;
+        canvas.height = 240 * dpr;
+        canvas.style.width = '240px';
+        canvas.style.height = '240px';
+      }
+      ctx.resetTransform();
+      ctx.scale(dpr, dpr);
+
+      const w = 240, h = 240, cx = 120, cy = 120;
+
+      // Calc visual radius. User said "基準半徑 = 80 * radius"
+      const r = 80 * radius;
+
+      ctx.clearRect(0, 0, w, h);
+
+      const startAng = -Math.PI / 2;
+      const endAng = startAng + (angle * Math.PI / 180);
+
+      // Sector
+      ctx.beginPath();
+      ctx.moveTo(cx, cy);
+      ctx.arc(cx, cy, r, startAng, endAng);
+      ctx.closePath();
+      ctx.fillStyle = 'rgba(59, 130, 246, 0.25)';
+      ctx.fill();
+
+      // 2 Radius Lines
+      ctx.beginPath();
+      ctx.strokeStyle = '#3b82f6';
+      ctx.lineWidth = 2;
+      ctx.moveTo(cx, cy); ctx.lineTo(cx + r * Math.cos(startAng), cy + r * Math.sin(startAng));
+      ctx.moveTo(cx, cy); ctx.lineTo(cx + r * Math.cos(endAng), cy + r * Math.sin(endAng));
+      ctx.stroke();
+
+      // Arc
+      ctx.beginPath();
+      ctx.strokeStyle = '#10b981';
+      ctx.lineWidth = 6;
+      ctx.arc(cx, cy, r, startAng, endAng);
+      ctx.stroke();
+
+      // Theta Text
+      if (angle > 0) {
+        ctx.fillStyle = '#3b82f6';
+        ctx.font = 'bold 16px monospace';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        const mid = startAng + (endAng - startAng) / 2;
+        ctx.fillText('θ=' + angle + '°', cx + (r * 0.5) * Math.cos(mid), cy + (r * 0.5) * Math.sin(mid));
+      }
+
+      // L Text
+      ctx.fillStyle = '#1e293b';
+      ctx.font = '14px system-ui';
+      ctx.textAlign = 'center';
+      ctx.fillText('L = 2πr × (θ/360)', cx, h - 10);
+
+      if (!window._s2cLogged) {
+        console.log('[Stage2-C] patched v2-check-C');
+        window._s2cLogged = true;
+      }
+      }
+      */
+
+      // <!-- CHANGED: Stage 2 Sync & Feedback with strict mapping -->
+      function initStage2Interactions() {
+        const slTheta = document.getElementById('sl-angle');
+        const slR = document.getElementById('sl-radius');
+        if (slTheta && slR) {
+          slTheta.oninput = updateStage2C;
+          slR.oninput = updateStage2C;
+          // No immediate call here, called in showS2
+        }
+
+        // Quiz Logic
+        document.querySelectorAll('.question').forEach(q => {
+          const handler = (e) => {
+            const id = q.dataset.q;
+            const targetCard = document.querySelector(`.ev-card[data-id="${id}"]`);
+            if (targetCard) {
+              targetCard.classList.add('focus');
+              document.querySelectorAll('.ev-card').forEach(c => {
+                if (c !== targetCard) c.classList.remove('focus');
+              });
+            }
+          };
+          q.addEventListener('mouseenter', handler);
+        });
+
+        // Quiz option selection
+        document.querySelectorAll('.option input').forEach(input => {
+          input.addEventListener('change', function () {
+            const isRadio = this.type === 'radio';
+            const row = this.closest('.option');
+            const qDiv = this.closest('.question');
+            const isCorrect = row.dataset.correct === 'true';
+
+            // If radio, reset others
+            if (isRadio) {
+              qDiv.querySelectorAll('.option').forEach(opt => {
+                opt.style.background = '#fff';
+                opt.style.borderColor = 'var(--line)';
+                opt.querySelectorAll('.fb-icon').forEach(i => i.remove());
+              });
+            } else {
+              // If checkbox unchecked, clean up
+              if (!this.checked) {
+                row.style.background = '#fff';
+                row.style.borderColor = 'var(--line)';
+                row.querySelectorAll('.fb-icon').forEach(i => i.remove());
+                return;
+              }
+            }
+
+            // Apply style
+            row.style.background = isCorrect ? '#f0fdf4' : '#fef2f2';
+            row.style.borderColor = isCorrect ? 'var(--good)' : 'var(--bad)';
+
+            // Add icon
+            row.querySelectorAll('.fb-icon').forEach(i => i.remove());
+            const icon = document.createElement('span');
+            icon.className = 'fb-icon';
+            icon.style.marginLeft = 'auto';
+            icon.style.fontWeight = 'bold';
+            icon.textContent = isCorrect ? '✅ 正確' : '❌ 再想一下';
+            icon.style.color = isCorrect ? 'var(--good)' : 'var(--bad)';
+            row.appendChild(icon);
+
+            // Update Card Feedback
+            const qId = qDiv.dataset.q;
+            updateCardFeedback(qId, isCorrect);
+
+            // Check all completion
+            checkS2Completion();
+          });
+        });
+      }
+
+      function updateCardFeedback(qId, isCorrect) {
+        const card = document.querySelector(`.ev-card[data-id="${qId}"]`);
+        if (!card) return;
+        const fb = card.querySelector('.ev-feedback');
+        if (fb) {
+          fb.className = 'ev-feedback show ' + (isCorrect ? 'ok' : 'warn');
+          fb.textContent = isCorrect ? '✅ 觀念正確！' : '❌ 再試試看...';
+        }
+      }
+
+      function checkS2Completion() {
+        const q1 = document.querySelector('.question[data-q="1"] input:checked') && document.querySelector('.question[data-q="1"] .option[data-correct="true"] input:checked');
+        const q2 = document.querySelector('.question[data-q="2"] input:checked') && document.querySelector('.question[data-q="2"] .option[data-correct="true"] input:checked');
+        const q3 = document.querySelector('.question[data-q="3"] input:checked') && document.querySelector('.question[data-q="3"] .option[data-correct="true"] input:checked');
+
+        // Add Q4, Q5 checks
+        const q4 = document.querySelector('.question[data-q="4"] input:checked') && document.querySelector('.question[data-q="4"] .option[data-correct="true"] input:checked');
+        const q5 = document.querySelector('.question[data-q="5"] input:checked') && document.querySelector('.question[data-q="5"] .option[data-correct="true"] input:checked');
+
+        if (q1 && q2 && q3) {
+          // Show Discovery Section
+          const secD = document.getElementById('sec-discovery');
+          if (secD) secD.style.display = 'block';
+
+          if (q4 && q5) {
+            document.getElementById('insight').style.display = 'block';
+          }
+        }
+      }
+      // <!-- CHANGED: Stage 2 Logic End -->
+
+      function updateNavState(s) {
+        const back = document.getElementById('gh-back');
+        const next = document.getElementById('gh-next');
+        const title = document.getElementById('gh-title');
+
+        // Reset
+        back.onclick = null; next.onclick = null;
+        back.classList.remove('disabled'); next.classList.remove('disabled');
+
+        if (s === 0) {
+          title.textContent = "Stage 0: 前測";
+          back.href = "index.html";
+          next.href = "?stage=1";
+          next.onclick = (e) => { e.preventDefault(); goS(1); };
+        } else if (s === 1) {
+          title.textContent = "Stage 1: 測量";
+          back.href = "?stage=0";
+          back.onclick = (e) => { e.preventDefault(); goS(0); };
+          next.href = "?stage=1.5";
+          next.onclick = (e) => { e.preventDefault(); goS(1.5); };
+        } else if (s === 1.5) {
+          title.textContent = "Stage 1.5: 對比";
+          back.href = "?stage=1";
+          back.onclick = (e) => { e.preventDefault(); goS(1); };
+          next.href = "?stage=2";
+          next.onclick = (e) => { e.preventDefault(); goS(2); };
+        } else if (s === 2) {
+          title.textContent = "Stage 2: 觀察";
+          back.href = "?stage=1.5";
+          back.onclick = (e) => { e.preventDefault(); goS(1.5); };
+          next.href = "index.html";
+        }
+      }
+
+    })();
+  </script>
 </body>
+
 </html>

@@ -1,12 +1,576 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="zh-Hant">
+
 <head>
-  <meta charset="utf-8" />
-  <meta http-equiv="refresh" content="0; url=./index_v2.html" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Redirecting…</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>圓心角與弧長探究實驗 - 學習導航</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: system-ui,
+        -apple-system,
+        "Segoe UI",
+        Roboto,
+        "Noto Sans TC",
+        sans-serif;
+      background: var(--bg-color);
+      color: var(--text-main);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding-top: 80px;
+      /* Offset for fixed header */
+    }
+
+    :root {
+      --bg: #f8fafc;
+      --panel: #ffffff;
+      --text: #1e293b;
+      --muted: #64748b;
+      --line: #e2e8f0;
+
+      /* Shared tokens */
+      --color-angle: #3b82f6;
+      --color-radius: #f97316;
+      --color-arc-new: #10b981;
+      --color-arc-old: #ef4444;
+
+      --accent: #3b82f6;
+      --good: #10b981;
+      --bad: #ef4444;
+      --blue: #3b82f6;
+
+      --btn-bg: #ffffff;
+      --btn-border: #cbd5e1;
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    body {
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans TC", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding-top: 80px;
+      line-height: 1.5;
+    }
+
+    /* Global Nav Styles */
+    .global-header {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 60px;
+      background: var(--panel);
+      border-bottom: 2px solid var(--line);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 16px;
+      z-index: 9999;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+    }
+
+    .gh-btn {
+      background: var(--btn-bg);
+      border: 1px solid var(--btn-border);
+      border-radius: 8px;
+      padding: 4px 12px;
+      cursor: pointer;
+      text-decoration: none;
+      color: var(--text);
+      font-size: 16px;
+      font-weight: 600;
+      display: inline-flex;
+      align-items: center;
+      height: 36px;
+      transition: all 0.2s;
+      user-select: none;
+      font-family: system-ui;
+    }
+
+    .gh-btn:hover:not(.disabled) {
+      background: #f1f5f9;
+      transform: translateY(-1px);
+    }
+
+    .gh-btn.disabled {
+      opacity: 0.4;
+      pointer-events: none;
+    }
+
+    .gh-center {
+      font-size: 20px;
+      font-weight: 700;
+      color: var(--text);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .gh-right {
+      display: flex;
+      gap: 8px;
+    }
+
+    .modal-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.6);
+      z-index: 10000;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      backdrop-filter: blur(2px);
+    }
+
+    .modal-overlay.show {
+      display: flex;
+    }
+
+    .modal-box {
+      background: white;
+      padding: 24px;
+      border-radius: 16px;
+      max-width: 400px;
+      width: 90%;
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+    }
+
+    .header-hero {
+      text-align: center;
+      margin-bottom: 40px;
+    }
+
+    .header-hero h1 {
+      font-size: 2.5rem;
+      font-weight: 800;
+      color: var(--blue);
+      margin-bottom: 10px;
+    }
+
+    .timeline::before {
+      content: '';
+      position: absolute;
+      left: 50%;
+      top: 0;
+      bottom: 0;
+      width: 4px;
+      background: var(--line);
+      transform: translateX(-50%);
+    }
+
+    .container {
+      max-width: 900px;
+      width: 100%;
+    }
+
+
+    .timeline {
+      position: relative;
+      padding: 20px 0;
+    }
+
+    /* timeline::before is already there but might be duplicated if not careful, checking line 171... it is there. I will overwrite it or merge. */
+
+    .stage-card {
+      position: relative;
+      margin-bottom: 40px;
+      animation: fadeInUp 0.6s ease backwards;
+    }
+
+    .stage-card:nth-child(1) {
+      animation-delay: 0.1s;
+    }
+
+    .stage-card:nth-child(2) {
+      animation-delay: 0.2s;
+    }
+
+    .stage-card:nth-child(3) {
+      animation-delay: 0.3s;
+    }
+
+    .stage-card:nth-child(4) {
+      animation-delay: 0.4s;
+    }
+
+    .stage-card:nth-child(5) {
+      animation-delay: 0.5s;
+    }
+
+    .stage-card.left {
+      padding-right: calc(50% + 40px);
+      text-align: right;
+    }
+
+    .stage-card.right {
+      padding-left: calc(50% + 40px);
+      text-align: left;
+    }
+
+    .stage-dot {
+      position: absolute;
+      left: 50%;
+      top: 30px;
+      width: 24px;
+      height: 24px;
+      background: white;
+      border: 4px solid var(--accent);
+      border-radius: 50%;
+      transform: translateX(-50%);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+      z-index: 10;
+    }
+
+    .stage-card.completed .stage-dot {
+      background: var(--good);
+      border-color: var(--good);
+    }
+
+    .stage-content {
+      background: white;
+      border-radius: 16px;
+      padding: 24px;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+      transition: all 0.3s ease;
+      cursor: pointer;
+    }
+
+    .stage-content:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 12px 32px rgba(0, 0, 0, 0.2);
+    }
+
+    .stage-badge {
+      display: inline-block;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 6px 16px;
+      border-radius: 20px;
+      font-size: 0.85rem;
+      font-weight: 700;
+      margin-bottom: 12px;
+    }
+
+    .stage-meta {
+      display: flex;
+      gap: 16px;
+      font-size: 0.85rem;
+      color: var(--muted);
+      margin-bottom: 16px;
+    }
+
+    .left .stage-meta {
+      justify-content: flex-end;
+    }
+
+    .right .stage-meta {
+      justify-content: flex-start;
+    }
+
+    .meta-item {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .stage-new {
+      position: absolute;
+      top: -8px;
+      right: -8px;
+      background: var(--bad);
+      color: white;
+      padding: 4px 12px;
+      border-radius: 12px;
+      font-size: 0.75rem;
+      font-weight: 700;
+      box-shadow: 0 2px 8px rgba(239, 68, 68, 0.4);
+      animation: pulse 2s ease infinite;
+    }
+
+    @keyframes pulse {
+
+      0%,
+      100% {
+        transform: scale(1);
+      }
+
+      50% {
+        transform: scale(1.05);
+      }
+    }
+
+    /* Rest of existing styles adapter */
+    .stage-title {
+      color: var(--text);
+    }
+
+    .stage-desc {
+      color: var(--muted);
+    }
+
+    .stage-btn {
+      background: var(--accent);
+    }
+  </style>
 </head>
+
 <body>
-  <p>Redirecting… <a href="./index_v2.html">Click here</a></p>
+  <header class="global-header">
+    <div class="gh-left">
+      <!-- Home disabled on index -->
+      <a class="gh-btn disabled">🏠 Home</a>
+    </div>
+    <div class="gh-center">學習導航</div>
+    <div class="gh-right">
+      <a class="gh-btn disabled">◀ Back</a>
+      <a href="circle_explorer_fixed.html" class="gh-btn">Next ▶</a>
+      <button class="gh-btn" onclick="document.getElementById('gh-help-modal').classList.add('show')">?</button>
+    </div>
+  </header>
+
+  <div id="gh-help-modal" class="modal-overlay">
+    <div class="modal-box">
+      <h3>📌 學習導航說明</h3>
+      <p>請依序點擊下方的學習階段開始探究。建議依照順序進行。</p>
+      <button class="gh-btn" style="width:100%;justify-content:center;margin-top:10px"
+        onclick="document.getElementById('gh-help-modal').classList.remove('show')">了解</button>
+    </div>
+  </div>
+
+  <div class="container">
+    <div class="header-hero">
+      <h1>🎯 圓心角與弧長探究實驗</h1>
+      <p style="color:var(--text-muted)">透過動手操作，發現圓的奧秘</p>
+    </div>
+
+    <div class="timeline">
+      <!-- Stage 0 -->
+      <div class="stage-card left" data-stage="0">
+        <div class="stage-dot"></div>
+        <div class="stage-content" onclick="goToStage(0)">
+          <div class="stage-badge">階段 0</div>
+          <div class="stage-title">📝 前測評估</div>
+          <div class="stage-desc">
+            測試你對圓心角和弧長的先備知識，幫助我們了解你的學習起點。
+          </div>
+          <div class="stage-meta">
+            <div class="meta-item">
+              <span>⏱️</span>
+              <span>約 5 分鐘</span>
+            </div>
+            <div class="meta-item">
+              <span>📋</span>
+              <span>3 題選擇題</span>
+            </div>
+          </div>
+          <a href="circle_explorer_fixed.html" class="stage-btn" target="_blank">開始前測 →</a>
+        </div>
+      </div>
+
+      <!-- Stage 1 -->
+      <div class="stage-card right" data-stage="1">
+        <div class="stage-dot"></div>
+        <div class="stage-content" onclick="goToStage(1)">
+          <div class="stage-badge">階段 1</div>
+          <div class="stage-title">📏 測量不同半徑的圓</div>
+          <div class="stage-desc">
+            使用互動式量角器，測量三個不同半徑的圓的圓心角，觀察半徑與弧長的關係。
+          </div>
+          <div class="stage-meta">
+            <div class="meta-item">
+              <span>⏱️</span>
+              <span>約 10 分鐘</span>
+            </div>
+            <div class="meta-item">
+              <span>🎮</span>
+              <span>互動測量</span>
+            </div>
+          </div>
+          <a href="circle_explorer_fixed.html?stage=1" class="stage-btn" target="_blank">開始測量 →</a>
+        </div>
+      </div>
+
+      <!-- Stage 1.5 (New!) -->
+      <div class="stage-card left" data-stage="1.5">
+        <div class="stage-dot"></div>
+        <div class="stage-content" onclick="goToStage(1.5)" style="position: relative;">
+          <span class="stage-new">NEW!</span>
+          <div class="stage-badge">階段 1.5</div>
+          <div class="stage-title">📐 視覺化對比實驗</div>
+          <div class="stage-desc">
+            拖動滑桿改變圓的半徑，直觀觀察當半徑變化時，圓心角和弧長如何改變。
+          </div>
+          <div class="stage-meta">
+            <div class="meta-item">
+              <span>⏱️</span>
+              <span>約 5 分鐘</span>
+            </div>
+            <div class="meta-item">
+              <span>🎨</span>
+              <span>動態視覺化</span>
+            </div>
+          </div>
+          <a href="circle_adventure_0104.html" class="stage-btn" target="_blank">開始對比 →</a>
+        </div>
+      </div>
+
+      <!-- Stage 2 -->
+      <div class="stage-card right" data-stage="2">
+        <div class="stage-dot"></div>
+        <div class="stage-content" onclick="goToStage(2)">
+          <div class="stage-badge">階段 2</div>
+          <div class="stage-title">🔄 弧的位置觀察</div>
+          <div class="stage-desc">
+            拖曳不同顏色的弧到不同位置，探索弧的位置是否會影響圓心角和弧長。
+          </div>
+          <div class="stage-meta">
+            <div class="meta-item">
+              <span>⏱️</span>
+              <span>約 8 分鐘</span>
+            </div>
+            <div class="meta-item">
+              <span>🔍</span>
+              <span>觀察問答</span>
+            </div>
+          </div>
+          <a href="circle_explorer_fixed.html?stage=2" class="stage-btn" target="_blank">開始觀察 →</a>
+        </div>
+      </div>
+
+      <!-- Stage 3 -->
+      <div class="stage-card left" data-stage="3">
+        <div class="stage-dot"></div>
+        <div class="stage-content" onclick="goToStage(3)">
+          <div class="stage-badge">階段 3</div>
+          <div class="stage-title">💭 結果分析與反思</div>
+          <div class="stage-desc">
+            綜合所有階段的發現，歸納出圓心角與弧長的數學關係，推導弧長公式。
+          </div>
+          <div class="stage-meta">
+            <div class="meta-item">
+              <span>⏱️</span>
+              <span>約 10 分鐘</span>
+            </div>
+            <div class="meta-item">
+              <span>🎓</span>
+              <span>反思歸納</span>
+            </div>
+          </div>
+          <a href="circle_explorer_fixed.html?stage=3" class="stage-btn" target="_blank">開始分析 →</a>
+        </div>
+      </div>
+    </div>
+
+    <div class="footer">
+      <div class="footer-text">學習進度</div>
+      <div class="progress-bar">
+        <div class="progress-fill" id="progressFill"></div>
+      </div>
+      <div class="progress-text">
+        已完成 <span id="progressCount">0</span> / 5 個階段（<span id="progressPercent">0</span>%）
+      </div>
+      <div style="margin-top: 16px; font-size: 0.85rem; opacity: 0.8;">
+        💡 建議按照順序完成所有階段，以獲得最佳學習效果
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // 從 localStorage 讀取學習進度
+    function loadProgress() {
+      const completed = JSON.parse(localStorage.getItem('circleExplorerProgress') || '[]');
+      return completed;
+    }
+
+    // 儲存學習進度
+    function saveProgress(stage) {
+      let completed = loadProgress();
+      if (!completed.includes(stage)) {
+        completed.push(stage);
+        localStorage.setItem('circleExplorerProgress', JSON.stringify(completed));
+      }
+      updateUI();
+    }
+
+    // 更新 UI 顯示進度
+    function updateUI() {
+      const completed = loadProgress();
+      const totalStages = 5;
+      const percent = Math.round((completed.length / totalStages) * 100);
+
+      // 更新進度條
+      document.getElementById('progressFill').style.width = percent + '%';
+      document.getElementById('progressCount').textContent = completed.length;
+      document.getElementById('progressPercent').textContent = percent;
+
+      // 標記已完成的階段
+      document.querySelectorAll('.stage-card').forEach(card => {
+        const stage = parseFloat(card.dataset.stage);
+        if (completed.includes(stage)) {
+          card.classList.add('completed');
+          const btn = card.querySelector('.stage-btn');
+          if (btn) {
+            btn.classList.add('completed');
+            btn.innerHTML = btn.innerHTML.replace('開始', '重新').replace('→', '✓');
+          }
+        }
+      });
+    }
+
+    // 前往指定階段
+    function goToStage(stage) {
+      saveProgress(stage);
+    }
+
+    // 重置進度（開發用）
+    function resetProgress() {
+      if (confirm('確定要重置所有學習進度嗎？')) {
+        localStorage.removeItem('circleExplorerProgress');
+        location.reload();
+      }
+    }
+
+    // 頁面載入時更新 UI
+    window.addEventListener('DOMContentLoaded', () => {
+      updateUI();
+
+      // 監聽從其他頁面回來的訊息
+      window.addEventListener('storage', (e) => {
+        if (e.key === 'circleExplorerProgress') {
+          updateUI();
+        }
+      });
+
+      // 雙擊 footer 可重置進度（隱藏功能）
+      document.querySelector('.footer').addEventListener('dblclick', resetProgress);
+    });
+
+    // 當視窗獲得焦點時，重新載入進度（從其他頁面回來時）
+    window.addEventListener('focus', () => {
+      updateUI();
+    });
+  </script>
 </body>
+
 </html>

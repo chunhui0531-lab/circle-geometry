@@ -1,0 +1,756 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+
+<head>
+  <meta charset="UTF-8">
+  <title>半徑變大，弧度數不變｜視覺對比教學</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <style>
+    :root {
+      --bg: #f8fafc;
+      --panel: #ffffff;
+      --text: #1e293b;
+      --muted: #64748b;
+      --line: #e2e8f0;
+
+      /* Shared tokens */
+      --color-angle: #3b82f6;
+      --color-radius: #f97316;
+      --color-arc-new: #10b981;
+      --color-arc-old: #ef4444;
+
+      --accent: #3b82f6;
+      --good: #10b981;
+      --bad: #ef4444;
+      --blue: #3b82f6;
+
+      --btn-bg: #ffffff;
+      --btn-border: #cbd5e1;
+    }
+
+    body {
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans TC", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 10px;
+      margin: 0;
+      height: 100vh;
+      overflow: hidden;
+      box-sizing: border-box;
+      font-size: 20px;
+      padding-top: 80px;
+    }
+
+    /* Global Nav code injection */
+    .global-header {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 60px;
+      background: var(--panel);
+      border-bottom: 2px solid var(--line);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 16px;
+      z-index: 9999;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+    }
+
+    .gh-btn {
+      background: var(--btn-bg);
+      border: 1px solid var(--btn-border);
+      border-radius: 8px;
+      padding: 4px 12px;
+      cursor: pointer;
+      text-decoration: none;
+      color: var(--text);
+      font-size: 16px;
+      font-weight: 600;
+      display: inline-flex;
+      align-items: center;
+      height: 36px;
+      transition: all 0.2s;
+      user-select: none;
+      font-family: system-ui;
+    }
+
+    .gh-btn:hover:not(.disabled) {
+      background: #f1f5f9;
+      transform: translateY(-1px);
+    }
+
+    .gh-center {
+      font-size: 20px;
+      font-weight: 700;
+      color: var(--text);
+    }
+
+    .gh-right {
+      display: flex;
+      gap: 8px;
+    }
+
+    .modal-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.6);
+      z-index: 10000;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      backdrop-filter: blur(2px);
+    }
+
+    .modal-overlay.show {
+      display: flex;
+    }
+
+    .modal-box {
+      background: white;
+      padding: 24px;
+      border-radius: 16px;
+      max-width: 400px;
+      width: 90%;
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+    }
+
+    .container {
+      max-width: 1000px;
+      width: 100%;
+      height: 100%;
+      background: var(--panel);
+      border-radius: 16px;
+      padding: 15px 20px;
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    h2 {
+      margin-top: 0;
+      border-bottom: 2px solid #f1f5f9;
+      padding-bottom: 10px;
+      color: #334155;
+    }
+
+    /* 儀表板區域 */
+    .dashboard {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 10px;
+      margin-bottom: 10px;
+      flex-shrink: 0;
+    }
+
+    .dash-card {
+      background: #f8fafc;
+      padding: 10px;
+      border-radius: 12px;
+      text-align: center;
+      border: 1px solid var(--line);
+    }
+
+    .dash-title {
+      font-size: 1.2rem;
+      color: #334155;
+      margin-bottom: 5px;
+      font-weight: 600;
+    }
+
+    .dash-val {
+      font-size: 1.8rem;
+      font-weight: bold;
+      font-family: monospace;
+    }
+
+    .c-angle {
+      color: var(--color-angle);
+    }
+
+    .c-radius {
+      color: var(--color-radius);
+    }
+
+    .c-arc {
+      color: var(--color-arc-new);
+    }
+
+    /* 畫布區域 */
+    .canvas-box {
+      width: 100%;
+      flex: 1;
+      min-height: 0;
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: 15px;
+      position: relative;
+      overflow: hidden;
+      margin-bottom: 10px;
+    }
+
+    svg {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+
+    path,
+    line,
+    circle {
+      vector-effect: non-scaling-stroke;
+      transition: all 0.1s;
+    }
+
+    /* 控制區 */
+    .control-area {
+      padding: 10px 15px;
+      background: #eff6ff;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      gap: 15px;
+      flex-shrink: 0;
+    }
+
+    input[type=range] {
+      flex: 1;
+      cursor: pointer;
+      -webkit-appearance: none;
+      appearance: none;
+      height: 12px;
+      background: var(--btn-border);
+      border-radius: 6px;
+      outline: none;
+    }
+
+    input[type=range]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      background: var(--accent);
+      cursor: pointer;
+      border: 4px solid #fff;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+    }
+
+    /* 說明文字 */
+    .legend {
+      display: flex;
+      justify-content: center;
+      gap: 20px;
+      margin-top: 10px;
+      font-size: 1.1rem;
+      color: #334155;
+      font-weight: 600;
+    }
+
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    .dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      display: inline-block;
+    }
+
+    .tools-area {
+      display: flex;
+      justify-content: flex-end;
+      margin-bottom: 10px;
+    }
+
+    .btn-tool {
+      padding: 8px 16px;
+      background: #fff;
+      border: 2px solid var(--btn-border);
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: bold;
+      color: #475569;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.2s;
+      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+    }
+
+    .btn-tool:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    }
+
+    .btn-tool.active {
+      background: var(--accent);
+      color: white;
+      border-color: var(--accent);
+    }
+  </style>
+</head>
+
+<body>
+
+  <div class="container">
+    <header class="global-header">
+      <div class="gh-left">
+        <a href="index.html" class="gh-btn">🏠 Home</a>
+      </div>
+      <div class="gh-center">視覺化對比實驗</div>
+      <div class="gh-right">
+        <a href="circle_explorer_fixed.html?stage=1" class="gh-btn">◀ Back</a>
+        <a href="circle_explorer_fixed.html?stage=1.5" class="gh-btn">Next ▶</a>
+        <button class="gh-btn" onclick="document.getElementById('gh-help-modal').classList.add('show')">?</button>
+      </div>
+    </header>
+
+    <div id="gh-help-modal" class="modal-overlay">
+      <div class="modal-box">
+        <h3>📌 Stage 1.5 說明</h3>
+        <p>操作左側滑桿，觀察：</p>
+        <ul>
+          <li>半徑變大時，圓心角(藍)有變嗎？</li>
+          <li>弧長(綠)變長了嗎？</li>
+        </ul>
+        <button class="gh-btn" style="width:100%;justify-content:center;margin-top:10px"
+          onclick="document.getElementById('gh-help-modal').classList.remove('show')">我知道了</button>
+      </div>
+    </div>
+
+    <div class="container">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+        <!-- Old Header Removed -->
+      </div>
+
+      <div class="dashboard">
+        <div class="dash-card" style="border-top: 4px solid var(--color-angle)">
+          <div class="dash-title">圓心角 (Angle)</div>
+          <div class="dash-val c-angle" id="valAng">60°</div>
+        </div>
+
+        <div class="dash-card" style="border-top: 4px solid var(--color-radius)">
+          <div class="dash-title">半徑 (Radius)</div>
+          <div class="dash-val c-radius">
+            <span style="color:#cbd5e1; font-size:1rem;">120</span>
+            ➜ <span id="valR">150</span>
+          </div>
+        </div>
+
+        <div class="dash-card" style="border-top: 4px solid var(--color-arc-new)">
+          <div class="dash-title">弧長 (Length)</div>
+          <div class="dash-val c-arc">
+            <span style="color:#cbd5e1; font-size:1rem;">104.7</span>
+            ➜ <span id="valL">157.1</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="canvas-box">
+        <svg id="mainSvg" viewBox="0 0 600 500">
+        </svg>
+      </div>
+
+      <div class="tools-area">
+        <button class="btn-tool" id="btnToggleProt">
+          <svg style="width:20px;height:20px;display:inline-block;" viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" stroke-width="2">
+            <path d="M4 19a10 10 0 0 1 20 0H4z" />
+            <path d="M12 15v4" />
+          </svg>
+          顯示量角器
+        </button>
+      </div>
+
+      <div class="control-area">
+        <div style="flex:1">
+          <div style="margin-bottom:5px;font-weight:bold;color:#475569">調整半徑 (Radius)：<span id="txtR">150</span></div>
+          <input type="range" id="sliderR" min="80" max="248" value="150" step="1" style="width:100%">
+        </div>
+        <div style="flex:1; border-left:1px solid #cbd5e1; padding-left:15px">
+          <div style="margin-bottom:5px;font-weight:bold;color:#3b82f6">調整圓心角 (Angle)：<span id="txtAng">60°</span></div>
+          <input type="range" id="sliderAng" min="20" max="160" value="60" step="1" style="width:100%">
+        </div>
+      </div>
+
+      <div class="legend">
+        <div class="legend-item">
+          <span class="dot" style="background:var(--color-angle)"></span> 圓心角(藍)
+        </div>
+        <div class="legend-item">
+          <span class="dot" style="background:var(--color-arc-old)"></span> 原本的弧/度數(紅)
+        </div>
+        <div class="legend-item">
+          <span class="dot" style="background:var(--color-arc-new)"></span> 現在的弧長(綠)
+        </div>
+      </div>
+    </div>
+
+    <script>
+      const svg = document.getElementById('mainSvg');
+      const sliderR = document.getElementById('sliderR');
+      const sliderAng = document.getElementById('sliderAng');
+      const txtR = document.getElementById('txtR');
+      const txtAng = document.getElementById('txtAng');
+      const valR = document.getElementById('valR');
+      const valL = document.getElementById('valL');
+      const valAng = document.getElementById('valAng');
+
+      // 設定參數
+      const cx = 300;   // 圓心 X (Center of 600 width)
+      const cy = 250;   // 圓心 Y (Move up from 280 to allow more space below)
+      const baseR = 120; // 「原本」的半徑 (Ghost Radius)
+      let showProt = false;
+
+      // 量角器狀態
+      const prot = { x: 300, y: 250, r: 180, rot: 0, dragMode: null };
+      let startPt = { x: 0, y: 0 };
+      let startProt = { ...prot };
+
+      const SVG_NS = "http://www.w3.org/2000/svg";
+
+      function createEl(type, attrs) {
+        const el = document.createElementNS(SVG_NS, type);
+        for (const k in attrs) el.setAttribute(k, attrs[k]);
+        return el;
+      }
+
+      function getPos(r, degOffset, angle) {
+        // 讓扇形對稱於垂直線
+        const totalDeg = -90 + degOffset;
+        const rad = totalDeg * Math.PI / 180;
+        return {
+          x: cx + r * Math.cos(rad),
+          y: cy + r * Math.sin(rad)
+        };
+      }
+
+      function draw() {
+        svg.innerHTML = '';
+        const currentR = parseInt(sliderR.value);
+        const angle = parseInt(sliderAng.value);
+
+        txtR.textContent = currentR;
+        txtAng.textContent = angle + '°';
+        valAng.textContent = angle + '°';
+
+        // --- 1. 繪製「原本的圓 (Ghost)」 ---
+        // 虛線圓軌跡
+        svg.appendChild(createEl('circle', {
+          cx, cy, r: baseR,
+          fill: 'none', stroke: '#94a3b8',
+          'stroke-width': 2, 'stroke-dasharray': '6'
+        }));
+
+        // 計算 Ghost 座標
+        const pStartBase = getPos(baseR, -angle / 2, angle);
+        const pEndBase = getPos(baseR, angle / 2, angle);
+
+        // **紅色：原本的弧 (度數)**
+        const dArcBase = `M ${pStartBase.x} ${pStartBase.y} A ${baseR} ${baseR} 0 0 1 ${pEndBase.x} ${pEndBase.y}`;
+        svg.appendChild(createEl('path', {
+          d: dArcBase, fill: 'none',
+          stroke: 'var(--color-arc-old)', // 紅色
+          'stroke-width': 5,
+          'stroke-dasharray': '8,5' // 虛線強調是"原本的"或"參考的"
+        }));
+
+        // **紅色：標示弧的度數**
+        // 放在弧的上方一點點
+        svg.appendChild(createEl('text', {
+          x: cx, y: cy - baseR - 15,
+          'text-anchor': 'middle',
+          fill: 'var(--color-arc-old)',
+          'font-weight': 'bold',
+          'font-size': 18
+        })).textContent = `弧度數 ${angle}°`;
+
+
+        // --- 2. 繪製「現在的圓 (Active)」 ---
+        const pStart = getPos(currentR, -angle / 2, angle);
+        const pEnd = getPos(currentR, angle / 2, angle);
+
+        // 扇形淡色背景
+        const dSector = `M ${cx} ${cy} L ${pStart.x} ${pStart.y} A ${currentR} ${currentR} 0 0 1 ${pEnd.x} ${pEnd.y} Z`;
+        svg.appendChild(createEl('path', {
+          d: dSector, fill: 'var(--color-radius)', 'fill-opacity': 0.05, stroke: 'none'
+        }));
+
+        // 實線外圓
+        svg.appendChild(createEl('circle', {
+          cx, cy, r: currentR,
+          fill: 'none', stroke: '#334155', 'stroke-width': 3, 'stroke-opacity': 0.6
+        }));
+
+        // --- 3. 繪製幾何線條 ---
+
+        // A. 圓心角 (藍色)
+        const angleMarkR = 30;
+        const pStartAng = getPos(angleMarkR, -angle / 2, angle);
+        const pEndAng = getPos(angleMarkR, angle / 2, angle);
+        const dAngle = `M ${cx} ${cy} L ${pStartAng.x} ${pStartAng.y} A ${angleMarkR} ${angleMarkR} 0 0 1 ${pEndAng.x} ${pEndAng.y} Z`;
+
+        svg.appendChild(createEl('path', {
+          d: dAngle, fill: 'var(--color-angle)', 'fill-opacity': 0.2, stroke: 'none'
+        }));
+        svg.appendChild(createEl('text', {
+          x: cx, y: cy - 40, 'text-anchor': 'middle',
+          fill: 'var(--color-angle)', 'font-weight': 'bold', 'font-size': 18
+        })).textContent = `${angle}°`;
+
+        // B. 半徑 (橘色)
+        svg.appendChild(createEl('line', {
+          x1: cx, y1: cy, x2: pStart.x, y2: pStart.y,
+          stroke: 'var(--color-radius)', 'stroke-width': 4, 'stroke-linecap': 'round'
+        }));
+        svg.appendChild(createEl('line', {
+          x1: cx, y1: cy, x2: pEnd.x, y2: pEnd.y,
+          stroke: 'var(--color-radius)', 'stroke-width': 4, 'stroke-linecap': 'round'
+        }));
+        // 標示 R (稍微移動位置避免重疊)
+        const midR = currentR / 2;
+        // 使用動態角度來決定標籤位置
+        const labelPosR = getPos(midR, -angle / 2 - 15);
+        svg.appendChild(createEl('text', {
+          x: labelPosR.x, y: labelPosR.y, fill: 'var(--color-radius)', 'font-weight': 'bold', 'font-size': 18
+        })).textContent = "R";
+
+        // C. 弧長 (綠色) - 現在的
+        const dArc = `M ${pStart.x} ${pStart.y} A ${currentR} ${currentR} 0 0 1 ${pEnd.x} ${pEnd.y}`;
+        svg.appendChild(createEl('path', {
+          d: dArc, fill: 'none',
+          stroke: 'var(--color-arc-new)', 'stroke-width': 7, 'stroke-linecap': 'round'
+        }));
+
+        // 標示弧長文字
+        svg.appendChild(createEl('text', {
+          x: cx, y: cy - currentR - 15, 'text-anchor': 'middle',
+          fill: 'var(--color-arc-new)', 'font-weight': 'bold', 'font-size': 18
+        })).textContent = "弧長";
+
+        // 圓心
+        svg.appendChild(createEl('circle', { cx, cy, r: 5, fill: '#333' }));
+        svg.appendChild(createEl('text', { x: cx, y: cy + 20, 'text-anchor': 'middle', fill: '#64748b', 'font-size': 12 })).textContent = "O";
+
+        updateData(currentR, angle);
+
+        if (showProt) {
+          drawProtractor();
+        }
+      }
+
+      function drawProtractor() {
+        const { x, y, r, rot } = prot;
+
+        // 群組 wrapper with transformation
+        const g = createEl('g', {
+          transform: `translate(${x}, ${y}) rotate(${rot})`,
+          style: 'cursor: grab; pointer-events: all'
+        });
+
+        // 1. 半透明背景 (Full Circle 360 for full measuring utility, per image hint)
+        // The image showed 360, but user might be ok with 180. Let's do 360 to be safe and versatile.
+        g.appendChild(createEl('circle', {
+          cx: 0, cy: 0, r: r,
+          fill: 'rgba(255, 255, 255, 0.4)', stroke: '#334155', 'stroke-width': 2
+        }));
+
+        // 2. 刻度
+        for (let i = 0; i < 360; i++) {
+          const isMajor = i % 10 === 0;
+          const isMid = i % 5 === 0;
+          // Don't draw every single degree to keep performant? 360 lines is fine.
+          // Skip minor ticks for clutter if needed? No, let's draw all but optimize length.
+          if (!isMid && i % 1 !== 0) continue; // Only draw every degree or 5? Let's do every degree.
+
+          let len = isMajor ? 12 : (isMid ? 8 : 4);
+          // Change to Counter-Clockwise (CCW): Right(0) -> Top(90) -> Left(180)
+          const rad = -i * Math.PI / 180;
+          // Draw from edge inward
+          const x1 = r * Math.cos(rad);
+          const y1 = r * Math.sin(rad);
+          const x2 = (r - len) * Math.cos(rad);
+          const y2 = (r - len) * Math.sin(rad);
+
+          g.appendChild(createEl('line', {
+            x1, y1, x2, y2, stroke: '#334155', 'stroke-width': (isMajor ? 2.5 : 1)
+          }));
+
+          if (isMajor) {
+            const textR = r - 22;
+            const tx = textR * Math.cos(rad);
+            const ty = textR * Math.sin(rad);
+
+            const txt = createEl('text', {
+              x: tx, y: ty + 4,
+              'text-anchor': 'middle',
+              'font-size': 16, fill: '#334155', 'font-weight': 'bold',
+              'pointer-events': 'none',
+              'font-family': 'Arial, sans-serif',
+              transform: `rotate(${-i + 90}, ${tx}, ${ty})` // Align text with radius
+            });
+            txt.textContent = i;
+            g.appendChild(txt);
+          }
+        }
+
+        // 3. Center Cross
+        g.appendChild(createEl('line', { x1: -10, y1: 0, x2: 10, y2: 0, stroke: '#ef4444', 'stroke-width': 3 }));
+        g.appendChild(createEl('line', { x1: 0, y1: -10, x2: 0, y2: 10, stroke: '#ef4444', 'stroke-width': 3 }));
+        // Center hit zone
+        g.appendChild(createEl('circle', { cx: 0, cy: 0, r: 25, fill: 'transparent', style: 'cursor:move' }));
+
+        // 4. Resize Handle (Blue icon at 315 deg / -45 deg)
+        const handleAng = -45 * Math.PI / 180;
+        const hx = (r + 20) * Math.cos(handleAng);
+        const hy = (r + 20) * Math.sin(handleAng);
+
+        const handleG = createEl('g', { style: 'cursor: nwse-resize' });
+        handleG.appendChild(createEl('circle', { cx: hx, cy: hy, r: 12, fill: '#3b82f6', stroke: '#fff', 'stroke-width': 2 }));
+        // Arrow icon
+        handleG.appendChild(createEl('path', {
+          d: `M ${hx - 4} ${hy - 4} L ${hx + 4} ${hy + 4} M ${hx - 4} ${hy + 4} L ${hx + 4} ${hy - 4}`,
+          stroke: 'white', 'stroke-width': 2
+        })); // Actually just an X or arrows
+        g.appendChild(handleG);
+
+        svg.appendChild(g);
+      }
+
+      // Interaction Logic
+      function getLoc(evt) {
+        const pt = svg.createSVGPoint();
+        // Pointer events provide clientX/Y directly
+        pt.x = evt.clientX;
+        pt.y = evt.clientY;
+        return pt.matrixTransform(svg.getScreenCTM().inverse());
+      }
+
+      function handleStart(e) {
+        if (!showProt) return;
+        const pt = getLoc(e);
+        const dx = pt.x - prot.x;
+        const dy = pt.y - prot.y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+
+        // Check handles
+        // Scale handle is at -45 deg, r+20
+        const handleRad = (-45 + prot.rot) * Math.PI / 180;
+        const hx = prot.x + (prot.r + 20) * Math.cos(handleRad);
+        const hy = prot.y + (prot.r + 20) * Math.sin(handleRad);
+
+        // Increased hit area 25 -> 40
+        if (Math.hypot(pt.x - hx, pt.y - hy) < 40) {
+          prot.dragMode = 'scale';
+        } else if (dist < 40) { // Increased hit area 30 -> 40
+          prot.dragMode = 'move';
+        } else if (dist > prot.r - 20 && dist < prot.r + 40) { // Slightly wider band r+30 -> r+40
+          prot.dragMode = 'rotate';
+        } else {
+          return;
+        }
+
+        startPt = pt;
+        startProt = { ...prot };
+        e.preventDefault();
+        svg.setPointerCapture(e.pointerId);
+      }
+
+      let rafId = null;
+      function handleMove(e) {
+        if (!prot.dragMode) return;
+        e.preventDefault();
+
+        if (rafId) return;
+        rafId = requestAnimationFrame(() => {
+          rafId = null;
+          const pt = getLoc(e);
+
+          if (prot.dragMode === 'move') {
+            prot.x = startProt.x + (pt.x - startPt.x);
+            prot.y = startProt.y + (pt.y - startPt.y);
+          } else if (prot.dragMode === 'rotate') {
+            const angStart = Math.atan2(startPt.y - prot.y, startPt.x - prot.x);
+            const angCurr = Math.atan2(pt.y - prot.y, pt.x - prot.x);
+            let degDiff = (angCurr - angStart) * 180 / Math.PI;
+            prot.rot = startProt.rot + degDiff;
+          } else if (prot.dragMode === 'scale') {
+            const distStart = Math.hypot(startPt.x - prot.x, startPt.y - prot.y);
+            const distCurr = Math.hypot(pt.x - prot.x, pt.y - prot.y);
+            const ratio = distCurr / distStart;
+            prot.r = Math.max(50, startProt.r * ratio);
+          }
+          draw();
+        });
+      }
+
+      function handleEnd(e) {
+        prot.dragMode = null;
+        // Implicit capture release
+      }
+
+      svg.addEventListener('pointerdown', handleStart);
+      svg.addEventListener('pointermove', handleMove);
+      svg.addEventListener('pointerup', handleEnd);
+      svg.addEventListener('pointercancel', handleEnd);
+      svg.style.touchAction = 'none';
+
+      function updateData(r, angle) {
+        valR.textContent = r;
+        // Ghost radius base arc length for comparison? Or just current.
+        // Display current values.
+        const len = 2 * Math.PI * r * (angle / 360);
+        valL.textContent = len.toFixed(1);
+
+        // Update base (Ghost) arc length for comparison in the dash if needed, 
+        // but the dashboard currently shows baseR(80) constant comparison.
+        // Let's update the "from" value in the dashboard to match the new angle too!
+        // baseR = 80
+        const baseLen = 2 * Math.PI * 80 * (angle / 360);
+        // Find the ghost val elements
+        // This part requires HTML updates if we want to dynamic update the "From" numbers.
+        // Let's just update the "To" values for now as per original code structure, 
+        // or arguably the "From" span should update because angle changed.
+
+        // Let's select the "From" spans
+        const fromR = document.querySelector('.c-radius span:first-child');
+        const fromL = document.querySelector('.c-arc span:first-child');
+        // fromR is fixed 120 in HTML, but logic wise it's baseR
+        // fromL depends on angle
+        fromL.textContent = baseLen.toFixed(1);
+
+        if (r > 240) valR.style.color = "#d97706";
+        else valR.style.color = "";
+      }
+
+      sliderR.addEventListener('input', draw);
+      sliderAng.addEventListener('input', draw);
+
+      const btnToggleProt = document.getElementById('btnToggleProt');
+      btnToggleProt.addEventListener('click', () => {
+        showProt = !showProt;
+        btnToggleProt.classList.toggle('active');
+        btnToggleProt.innerHTML = showProt ?
+          `<svg style="width:20px;height:20px;display:inline-block;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg> 隱藏量角器` :
+          `<svg style="width:20px;height:20px;display:inline-block;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19a10 10 0 0 1 20 0H4z" /><path d="M12 15v4" /></svg> 顯示量角器`;
+        draw();
+      });
+
+      draw();
+
+    </script>
+</body>
+
+</html>
